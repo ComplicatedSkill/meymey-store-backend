@@ -1,0 +1,52 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
+import {
+  SuppliersService,
+  CreateSupplierDto,
+  UpdateSupplierDto,
+} from './suppliers.service';
+import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
+
+@Controller('suppliers')
+@UseGuards(SupabaseAuthGuard)
+export class SuppliersController {
+  constructor(private readonly suppliersService: SuppliersService) {}
+
+  @Post()
+  create(@Body() createSupplierDto: CreateSupplierDto, @Request() req: any) {
+    const storeId = req.user?.store?.id;
+    return this.suppliersService.create(createSupplierDto, storeId);
+  }
+
+  @Get()
+  findAll() {
+    return this.suppliersService.findAll();
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.suppliersService.findOne(id);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body() updateSupplierDto: UpdateSupplierDto,
+  ) {
+    return this.suppliersService.update(id, updateSupplierDto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.suppliersService.remove(id);
+  }
+}
