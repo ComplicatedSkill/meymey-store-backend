@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -187,7 +188,25 @@ export class ProductsService {
     return this.mapProduct(data);
   }
 
-  async update(id: string, updateProductDto: UpdateProductDto) {
+  async update(
+    id: string,
+    updateProductDto: UpdateProductDto,
+    storeId?: string,
+  ) {
+    // First verify the product exists (scoped to store if provided)
+    let findQuery = this.supabaseService
+      .getClient()
+      .from('products')
+      .select('id')
+      .eq('id', id);
+    if (storeId) findQuery = findQuery.eq('store_id', storeId);
+
+    const { data: existing, error: findError } = await findQuery.maybeSingle();
+
+    if (findError || !existing) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
     const updateData: any = {
       ...updateProductDto,
       updated_at: new Date().toISOString(),
@@ -198,18 +217,24 @@ export class ProductsService {
 
     const { variants, ...updateDtoWithoutVariants } = updateData;
 
-    const { data: product, error: productError } = await this.supabaseService
+    let updateQuery = this.supabaseService
       .getClient()
       .from('products')
       .update(updateDtoWithoutVariants)
-      .eq('id', id)
+      .eq('id', id);
+    if (storeId) updateQuery = updateQuery.eq('store_id', storeId);
+
+    const { data: product, error: productError } = await updateQuery
       .select(
         '*, category:categories(*), uom:uom(*), stock:stock_batches(quantity_remaining), variants:product_variants(*)',
       )
       .single();
 
-    if (productError)
-      throw new NotFoundException(`Product with ID ${id} not found`);
+    if (productError) {
+      throw new InternalServerErrorException(
+        `Failed to update product: ${productError.message}`,
+      );
+    }
 
     if (variants) {
       await this.supabaseService
