@@ -70,16 +70,23 @@ export class StorefrontService {
     return data;
   }
 
-  async getProducts(storeIdentifier: string) {
+  async getProducts(storeIdentifier: string, params?: { brandId?: string }) {
     const storeId = await this.resolveStoreId(storeIdentifier);
-    const { data, error } = await this.supabaseService
+    let query = this.supabaseService
       .getAdminClient()
       .from('products')
       .select(
-        '*, category:categories(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+        '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
       )
-      .eq('store_id', storeId)
-      .order('created_at', { ascending: false });
+      .eq('store_id', storeId);
+
+    if (params?.brandId && params.brandId !== 'all') {
+      query = query.eq('brand_id', params.brandId);
+    }
+
+    const { data, error } = await query.order('created_at', {
+      ascending: false,
+    });
 
     if (error) throw error;
 
@@ -113,7 +120,7 @@ export class StorefrontService {
       .getAdminClient()
       .from('products')
       .select(
-        '*, category:categories(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+        '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
       )
       .eq('id', productId)
       .eq('store_id', storeId)
@@ -228,5 +235,114 @@ export class StorefrontService {
       .insert(itemsWithOrderId);
 
     return { order_id: order.id, total_amount: total, status: 'pending' };
+  }
+  async getHomepage() {
+    // Run all 3 queries in parallel
+    const [productsResult, categoriesResult, brandsResult] = await Promise.all([
+      // Fetch more products so we have enough to group by category (e.g., latest 200)
+      this.supabaseService
+        .getAdminClient()
+        .from('products')
+        .select(
+          '*, category:categories(*), brand:brands(*), stock:stock_batches(quantity_remaining)',
+        )
+        .order('created_at', { ascending: false })
+        .limit(200),
+
+      // All categories
+      this.supabaseService
+        .getAdminClient()
+        .from('categories')
+        .select('*')
+        .order('name', { ascending: true }),
+
+      // All brands
+      this.supabaseService
+        .getAdminClient()
+        .from('brands')
+        .select('*')
+        .order('name', { ascending: true }),
+    ]);
+
+    if (productsResult.error) throw productsResult.error;
+    if (categoriesResult.error) throw categoriesResult.error;
+    if (brandsResult.error) throw brandsResult.error;
+
+    const toSlug = (name: string) =>
+      (name ?? '')
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+    const mapProduct = (p: any) => {
+      const stockBatches = p.stock || [];
+      const totalStock = stockBatches.reduce(
+        (sum: number, b: any) => sum + (b.quantity_remaining || 0),
+        0,
+      );
+
+      // Build images array: prefer image_urls array, fallback to image_url
+      const images: string[] =
+        Array.isArray(p.image_urls) && p.image_urls.length > 0
+          ? p.image_urls
+          : p.image_url
+            ? [p.image_url]
+            : [];
+
+      return {
+        id: p.id,
+        name: p.name,
+        slug: toSlug(p.name),
+        brand: p.brand?.name ?? null,
+        brand_id: p.brand_id ?? null,
+        category: p.category?.name ?? null,
+        category_id: p.category_id ?? null,
+        price: p.price ?? null,
+        originalPrice: p.cost ?? null,
+        description: p.description ?? null,
+        images,
+        rating: null,
+        reviewCount: null,
+        badge: null,
+        inStock: totalStock > 0,
+        stock_level: totalStock,
+        skinType: null,
+        volume: null,
+        sku: p.sku,
+      };
+    };
+
+    const allProducts = (productsResult.data ?? []).map(mapProduct);
+
+    // Group products by category
+    const categories = (categoriesResult.data ?? []).map((c: any) => {
+      const categoryProducts = allProducts
+        .filter((p) => p.category_id === c.id)
+        .slice(0, 8); // Top 8 products per category
+
+      return {
+        id: c.id,
+        name: c.name,
+        slug: toSlug(c.name),
+        description: c.description ?? null,
+        icon: c.image_url ?? null,
+        products: categoryProducts,
+      };
+    });
+
+    // Also keep the flat list of the very latest products for a "New Arrivals" section
+    const featuredProducts = allProducts.slice(0, 12);
+
+    const brands = (brandsResult.data ?? []).map((b: any) => ({
+      id: b.id,
+      name: b.name,
+      slug: toSlug(b.name),
+      country: b.country ?? null,
+      description: b.description ?? null,
+      icon: b.logo_url ?? null,
+    }));
+
+    return { featuredProducts, categories, brands };
   }
 }

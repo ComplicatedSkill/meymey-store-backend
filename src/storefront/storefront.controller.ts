@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { StorefrontService } from './storefront.service';
 
 @Controller('storefront')
@@ -10,14 +10,22 @@ export class StorefrontController {
     return this.storefrontService.getStores();
   }
 
+  @Get('homepage')
+  getHomepage() {
+    return this.storefrontService.getHomepage();
+  }
+
   @Get(':storeId')
   getStore(@Param('storeId') storeId: string) {
     return this.storefrontService.getStore(storeId);
   }
 
   @Get(':storeId/products')
-  getProducts(@Param('storeId') storeId: string) {
-    return this.storefrontService.getProducts(storeId);
+  getProducts(
+    @Param('storeId') storeId: string,
+    @Query('brandId') brandId?: string,
+  ) {
+    return this.storefrontService.getProducts(storeId, { brandId });
   }
 
   @Get(':storeId/products/:productId')

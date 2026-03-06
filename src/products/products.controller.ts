@@ -16,7 +16,6 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 
 @Controller('products')
-@UseGuards(SupabaseAuthGuard)
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
@@ -32,12 +31,14 @@ export class ProductsController {
     @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('categoryId') categoryId?: string,
+    @Query('brandId') brandId?: string,
   ) {
     return this.productsService.findAll({
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
       search,
       categoryId,
+      brandId,
     });
   }
 

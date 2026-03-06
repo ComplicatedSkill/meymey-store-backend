@@ -25,7 +25,7 @@ export class UploadController {
 
     try {
       const publicUrl = await this.supabaseService.uploadFile(
-        'stores', // assuming 'stores' bucket exists
+        'stores',
         filePath,
         file.buffer,
         file.mimetype,
@@ -60,6 +60,60 @@ export class UploadController {
     } catch (error) {
       throw new BadRequestException(
         'Failed to upload product image: ' + error.message,
+      );
+    }
+  }
+
+  @Post('category')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadCategoryImage(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    const fileExt = file.originalname.split('.').pop();
+    const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}.${fileExt}`;
+    const filePath = `categories/${fileName}`;
+
+    try {
+      const publicUrl = await this.supabaseService.uploadFile(
+        'stores',
+        filePath,
+        file.buffer,
+        file.mimetype,
+      );
+
+      return { url: publicUrl };
+    } catch (error) {
+      throw new BadRequestException(
+        'Failed to upload category image: ' + error.message,
+      );
+    }
+  }
+
+  @Post('brand')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadBrandImage(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    const fileExt = file.originalname.split('.').pop();
+    const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}.${fileExt}`;
+    const filePath = `brands/${fileName}`;
+
+    try {
+      const publicUrl = await this.supabaseService.uploadFile(
+        'stores',
+        filePath,
+        file.buffer,
+        file.mimetype,
+      );
+
+      return { url: publicUrl };
+    } catch (error) {
+      throw new BadRequestException(
+        'Failed to upload brand image: ' + error.message,
       );
     }
   }

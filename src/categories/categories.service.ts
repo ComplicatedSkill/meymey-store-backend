@@ -20,7 +20,7 @@ export class CategoriesService {
     return data;
   }
 
-  async findAll(storeId: string) {
+  async findAll(storeId?: string) {
     // Categories are global - no store_id filter
     const { data, error } = await this.supabaseService
       .getClient()
@@ -32,7 +32,7 @@ export class CategoriesService {
     return data;
   }
 
-  async findOne(id: string, storeId: string) {
+  async findOne(id: string, storeId?: string) {
     const { data, error } = await this.supabaseService
       .getClient()
       .from('categories')

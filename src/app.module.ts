@@ -25,6 +25,7 @@ import { StockBatchesModule } from './stock-batches/stock-batches.module';
 import { ReportsModule } from './reports/reports.module';
 import { StorefrontModule } from './storefront/storefront.module';
 import { UploadModule } from './upload/upload.module';
+import { BrandsModule } from './brands/brands.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { UploadModule } from './upload/upload.module';
     ReportsModule,
     StorefrontModule,
     UploadModule,
+    BrandsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

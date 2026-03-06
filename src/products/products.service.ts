@@ -43,6 +43,7 @@ export class ProductsService {
     if (storeId) productData.store_id = storeId;
 
     if (productData.category_id === '') productData.category_id = null;
+    if (productData.brand_id === '') productData.brand_id = null;
     if (productData.uom_id === '') productData.uom_id = null;
 
     const { variants, ...productDtoWithoutVariants } = productData;
@@ -67,7 +68,7 @@ export class ProductsService {
       .from('products')
       .insert(productDtoWithoutVariants)
       .select(
-        '*, category:categories(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+        '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
       )
       .single();
 
@@ -102,18 +103,20 @@ export class ProductsService {
     limit?: number;
     search?: string;
     categoryId?: string;
+    brandId?: string;
   }) {
     const page = params?.page ?? 1;
     const limit = params?.limit ?? 30;
     const offset = (page - 1) * limit;
     const search = params?.search?.trim();
     const categoryId = params?.categoryId;
+    const brandId = params?.brandId;
 
     let query = this.supabaseService
       .getClient()
       .from('products')
       .select(
-        '*, category:categories(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+        '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
         { count: 'exact' },
       )
       .order('name', { ascending: true })
@@ -127,6 +130,10 @@ export class ProductsService {
       query = query.eq('category_id', categoryId);
     } else if (categoryId === 'uncategorized') {
       query = query.is('category_id', null);
+    }
+
+    if (brandId && brandId !== 'all') {
+      query = query.eq('brand_id', brandId);
     }
 
     const { data, error, count } = await query;
@@ -179,7 +186,7 @@ export class ProductsService {
       .getClient()
       .from('products')
       .select(
-        '*, category:categories(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+        '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
       )
       .eq('id', id)
       .single();
@@ -213,6 +220,7 @@ export class ProductsService {
     };
 
     if (updateData.category_id === '') updateData.category_id = null;
+    if (updateData.brand_id === '') updateData.brand_id = null;
     if (updateData.uom_id === '') updateData.uom_id = null;
 
     const { variants, ...updateDtoWithoutVariants } = updateData;
@@ -226,7 +234,7 @@ export class ProductsService {
 
     const { data: product, error: productError } = await updateQuery
       .select(
-        '*, category:categories(*), uom:uom(*), stock:stock_batches(quantity_remaining), variants:product_variants(*)',
+        '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining), variants:product_variants(*)',
       )
       .single();
 

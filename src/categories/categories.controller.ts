@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -15,7 +16,6 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 
 @Controller('categories')
-@UseGuards(SupabaseAuthGuard)
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
@@ -26,14 +26,12 @@ export class CategoriesController {
   }
 
   @Get()
-  findAll(@Request() req: any) {
-    const storeId = req.user.store?.id;
+  findAll(@Query('storeId') storeId?: string) {
     return this.categoriesService.findAll(storeId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @Request() req: any) {
-    const storeId = req.user.store?.id;
+  findOne(@Param('id') id: string, @Query('storeId') storeId?: string) {
     return this.categoriesService.findOne(id, storeId);
   }
 
