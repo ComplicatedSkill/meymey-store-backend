@@ -13,6 +13,7 @@ export class ProductsService {
   constructor(private supabaseService: SupabaseService) {}
 
   private mapProduct(product: any) {
+    if (!product) return null;
     const stockBatches = product.stock || [];
     const totalStock = stockBatches.reduce(
       (sum: number, batch: any) => sum + (batch.quantity_remaining || 0),
@@ -33,6 +34,80 @@ export class ProductsService {
       variants: variantsWithStock,
       stock: undefined,
     };
+  }
+
+  private async getRecommendations(currentProduct: any, limit: number = 4) {
+    const recommendations: any[] = [];
+    const usedIds = new Set<string>([currentProduct.id]);
+
+    // 1. Same Category
+    if (currentProduct.category_id) {
+      const { data: catProducts } = await this.supabaseService
+        .getClient()
+        .from('products')
+        .select(
+          '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+        )
+        .eq('category_id', currentProduct.category_id)
+        .neq('id', currentProduct.id)
+        .limit(limit);
+
+      if (catProducts) {
+        catProducts.forEach((p) => {
+          if (!usedIds.has(p.id)) {
+            recommendations.push(this.mapProduct(p));
+            usedIds.add(p.id);
+          }
+        });
+      }
+    }
+
+    // 2. Same Brand
+    const { data: brandProducts } = await this.supabaseService
+      .getClient()
+      .from('products')
+      .select(
+        '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+      )
+      .eq('brand_id', currentProduct.brand_id)
+      .neq('id', currentProduct.id)
+      .limit(limit - recommendations.length);
+
+    if (brandProducts) {
+      brandProducts.forEach((p) => {
+        if (!usedIds.has(p.id)) {
+          recommendations.push(this.mapProduct(p));
+          usedIds.add(p.id);
+        }
+      });
+    }
+
+    // 3. Most in stock (Fallback)
+    // Note: Ordering by stock_batches quantity_remaining directly is tricky due to join.
+    // We'll fetch more products and sort them in memory or just fetch recent ones if stock join is complex.
+    // For now, let's fetch products with stock info and sort.
+    const { data: topStockProducts } = await this.supabaseService
+      .getClient()
+      .from('products')
+      .select(
+        '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+      )
+      .neq('id', currentProduct.id)
+      .limit(limit * 2); // Fetch more to filter out usedIds and sort
+
+    if (topStockProducts) {
+      const mapped = topStockProducts
+        .map((p) => this.mapProduct(p))
+        .filter((p) => !usedIds.has(p.id))
+        .sort((a, b) => (b.stock_level || 0) - (a.stock_level || 0));
+
+      mapped.slice(0, limit - recommendations.length).forEach((p) => {
+        recommendations.push(p);
+        usedIds.add(p.id);
+      });
+    }
+
+    return recommendations.slice(0, limit);
   }
 
   async create(
@@ -92,10 +167,13 @@ export class ProductsService {
           .eq('id', product.id);
         throw variantsError;
       }
-      return this.findOne(product.id);
+      const result = await this.findOne(product.id);
+      return result;
     }
 
-    return { ...product, stock_level: 0 };
+    const finalProduct = this.mapProduct(product);
+    const recommendations = await this.getRecommendations(finalProduct);
+    return { ...finalProduct, recommendations };
   }
 
   async findAll(params?: {
@@ -192,7 +270,9 @@ export class ProductsService {
       .single();
 
     if (error) throw new NotFoundException(`Product with ID ${id} not found`);
-    return this.mapProduct(data);
+    const product = this.mapProduct(data);
+    const recommendations = await this.getRecommendations(product);
+    return { ...product, recommendations };
   }
 
   async update(

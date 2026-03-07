@@ -4,13 +4,17 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateSalesOrderDto } from './dto/create-sales-order.dto';
 import { UpdateSalesOrderDto } from './dto/update-sales-order.dto';
 import { SalesOrderItemDto } from './dto/sales-order-item.dto';
 
 @Injectable()
 export class SalesOrdersService {
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(
+    private supabaseService: SupabaseService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   private generateOrderNumber(): string {
     const timestamp = Date.now().toString(36).toUpperCase();
@@ -196,6 +200,28 @@ export class SalesOrdersService {
       .single();
     if (error)
       throw new NotFoundException(`Sales order with ID ${id} not found`);
+
+    // Trigger status update notification
+    try {
+      const { data: order } = await this.supabaseService
+        .getClient()
+        .from('sales_orders')
+        .select('order_number, store_id')
+        .eq('id', id)
+        .single();
+
+      if (order) {
+        await this.notificationsService.createOrderStatusNotification(
+          order.store_id,
+          order.order_number,
+          'Previous',
+          status,
+        );
+      }
+    } catch (e) {
+      console.error('Failed to trigger status notification:', e);
+    }
+
     return data;
   }
 

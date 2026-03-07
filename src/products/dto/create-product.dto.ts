@@ -10,4 +10,6 @@ export class CreateProductDto {
   price?: number;
   cost?: number;
   reorder_level?: number;
+  how_to_use?: string;
+  ingredients?: string;
 }

@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
-import { StorefrontController } from './storefront.controller';
-import { StorefrontService } from './storefront.service';
+import { WebhooksController } from './webhooks.controller';
+import { WebhooksService } from './webhooks.service';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [SupabaseModule, NotificationsModule],
-  controllers: [StorefrontController],
-  providers: [StorefrontService],
+  controllers: [WebhooksController],
+  providers: [WebhooksService],
 })
-export class StorefrontModule {}
+export class WebhooksModule {}

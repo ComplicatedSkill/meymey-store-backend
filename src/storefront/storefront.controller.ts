@@ -5,44 +5,28 @@ import { StorefrontService } from './storefront.service';
 export class StorefrontController {
   constructor(private readonly storefrontService: StorefrontService) {}
 
-  @Get('stores')
-  getStores() {
-    return this.storefrontService.getStores();
-  }
-
   @Get('homepage')
   getHomepage() {
     return this.storefrontService.getHomepage();
   }
 
-  @Get(':storeId')
-  getStore(@Param('storeId') storeId: string) {
-    return this.storefrontService.getStore(storeId);
+  @Get('products')
+  getProducts(@Query('brandId') brandId?: string) {
+    return this.storefrontService.getProducts({ brandId });
   }
 
-  @Get(':storeId/products')
-  getProducts(
-    @Param('storeId') storeId: string,
-    @Query('brandId') brandId?: string,
-  ) {
-    return this.storefrontService.getProducts(storeId, { brandId });
+  @Get('products/:productId')
+  getProduct(@Param('productId') productId: string) {
+    return this.storefrontService.getProduct(productId);
   }
 
-  @Get(':storeId/products/:productId')
-  getProduct(
-    @Param('storeId') storeId: string,
-    @Param('productId') productId: string,
-  ) {
-    return this.storefrontService.getProduct(storeId, productId);
+  @Get('categories')
+  getCategories() {
+    return this.storefrontService.getCategories();
   }
 
-  @Get(':storeId/categories')
-  getCategories(@Param('storeId') storeId: string) {
-    return this.storefrontService.getCategories(storeId);
-  }
-
-  @Post(':storeId/orders')
-  placeOrder(@Param('storeId') storeId: string, @Body() body: any) {
-    return this.storefrontService.placeOrder(storeId, body);
+  @Post('orders')
+  placeOrder(@Body() body: any) {
+    return this.storefrontService.placeOrder(body);
   }
 }

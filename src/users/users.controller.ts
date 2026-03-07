@@ -7,14 +7,25 @@ import {
   Param,
   Delete,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
+import { SaveDeviceTokenDto } from './dto/save-device-token.dto';
 
 @Controller('users')
-@UseGuards(SupabaseAuthGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Post('device-token')
+  @UseGuards(SupabaseAuthGuard)
+  async saveDeviceToken(@Request() req: any, @Body() dto: SaveDeviceTokenDto) {
+    return this.usersService.saveDeviceToken(
+      req.user.id,
+      dto.token,
+      dto.device_type,
+    );
+  }
 
   @Get()
   findAll() {

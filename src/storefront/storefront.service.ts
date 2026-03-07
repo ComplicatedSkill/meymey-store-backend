@@ -1,41 +1,26 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class StorefrontService {
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(
+    private supabaseService: SupabaseService,
+    private notificationsService: NotificationsService,
+  ) {}
 
-  private async resolveStoreId(identifier: string): Promise<string> {
-    // Check if it's a UUID
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (uuidRegex.test(identifier)) {
-      return identifier;
-    }
-
-    // Attempt to resolve by username (slug)
-    const { data, error } = await this.supabaseService
+  private async getSingleStoreId(): Promise<string> {
+    const { data: store, error } = await this.supabaseService
       .getAdminClient()
       .from('stores')
       .select('id')
-      .eq('username', identifier)
+      .limit(1)
       .single();
 
-    if (error || !data) {
-      // Fallback: Try store_name match (case-insensitive, hyphens to spaces)
-      const { data: nameData, error: nameError } = await this.supabaseService
-        .getAdminClient()
-        .from('stores')
-        .select('id')
-        .ilike('store_name', identifier.replace(/-/g, ' '))
-        .single();
-
-      if (nameError || !nameData) {
-        throw new NotFoundException(`Store not found: ${identifier}`);
-      }
-      return nameData.id;
+    if (error || !store) {
+      throw new NotFoundException('No store found');
     }
-    return data.id;
+    return store.id;
   }
 
   async getStores() {
@@ -57,8 +42,8 @@ export class StorefrontService {
     }
   }
 
-  async getStore(storeIdentifier: string) {
-    const storeId = await this.resolveStoreId(storeIdentifier);
+  async getStore() {
+    const storeId = await this.getSingleStoreId();
     const { data, error } = await this.supabaseService
       .getAdminClient()
       .from('stores')
@@ -70,8 +55,8 @@ export class StorefrontService {
     return data;
   }
 
-  async getProducts(storeIdentifier: string, params?: { brandId?: string }) {
-    const storeId = await this.resolveStoreId(storeIdentifier);
+  async getProducts(params?: { brandId?: string }) {
+    const storeId = await this.getSingleStoreId();
     let query = this.supabaseService
       .getAdminClient()
       .from('products')
@@ -114,8 +99,8 @@ export class StorefrontService {
     });
   }
 
-  async getProduct(storeIdentifier: string, productId: string) {
-    const storeId = await this.resolveStoreId(storeIdentifier);
+  async getProduct(productId: string) {
+    const storeId = await this.getSingleStoreId();
     const { data, error } = await this.supabaseService
       .getAdminClient()
       .from('products')
@@ -148,8 +133,8 @@ export class StorefrontService {
     };
   }
 
-  async getCategories(storeIdentifier: string) {
-    const storeId = await this.resolveStoreId(storeIdentifier);
+  async getCategories() {
+    const storeId = await this.getSingleStoreId();
     // Get category IDs for products in this store
     const { data: products } = await this.supabaseService
       .getAdminClient()
@@ -175,8 +160,8 @@ export class StorefrontService {
     return data ?? [];
   }
 
-  async placeOrder(storeIdentifier: string, orderDto: any) {
-    const storeId = await this.resolveStoreId(storeIdentifier);
+  async placeOrder(orderDto: any) {
+    const storeId = await this.getSingleStoreId();
     const { customer_name, customer_phone, notes, items } = orderDto;
 
     // Calculate total from items
@@ -190,7 +175,7 @@ export class StorefrontService {
     }> = [];
 
     for (const item of items) {
-      const productData = await this.getProduct(storeId, item.product_id);
+      const productData = await this.getProduct(item.product_id);
       const price = item.variant_id
         ? (productData.variants?.find((v: any) => v.id === item.variant_id)
             ?.price ?? productData.price)
@@ -233,6 +218,26 @@ export class StorefrontService {
       .getAdminClient()
       .from('sales_order_items')
       .insert(itemsWithOrderId);
+
+    // Trigger notification
+    try {
+      await this.notificationsService.create(
+        {
+          type: 'new_order',
+          title: 'New Online Order',
+          message: `A new order has been placed by ${customer_name || 'a customer'} for a total of ${total}`,
+          data: {
+            order_id: order.id,
+            customer_name,
+            total_amount: total,
+            source: 'storefront',
+          },
+        },
+        storeId,
+      );
+    } catch (e) {
+      console.error('Failed to trigger notification:', e);
+    }
 
     return { order_id: order.id, total_amount: total, status: 'pending' };
   }

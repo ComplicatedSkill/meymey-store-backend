@@ -26,6 +26,7 @@ import { ReportsModule } from './reports/reports.module';
 import { StorefrontModule } from './storefront/storefront.module';
 import { UploadModule } from './upload/upload.module';
 import { BrandsModule } from './brands/brands.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { BrandsModule } from './brands/brands.module';
     StorefrontModule,
     UploadModule,
     BrandsModule,
+    WebhooksModule,
   ],
   controllers: [AppController],
   providers: [AppService],

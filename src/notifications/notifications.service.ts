@@ -1,22 +1,38 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
+import { PushNotificationsService } from './push-notifications.service';
 
 @Injectable()
 export class NotificationsService {
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(
+    private supabaseService: SupabaseService,
+    private pushNotificationsService: PushNotificationsService,
+  ) {}
 
   async create(createDto: CreateNotificationDto, storeId?: string) {
     const payload: any = { ...createDto };
     if (storeId) payload.store_id = storeId;
-    const { data, error } = await this.supabaseService
+    const { data: notification, error } = await this.supabaseService
       .getClient()
       .from('notifications')
       .insert(payload)
       .select()
       .single();
     if (error) throw error;
-    return data;
+
+    // Trigger push notification to a topic for the store
+    // This assumes administrators are subscribed to 'store_{storeId}' topic
+    if (storeId) {
+      await this.pushNotificationsService.sendToTopic(
+        `store_${storeId}`,
+        notification.title,
+        notification.message,
+        notification.data,
+      );
+    }
+
+    return notification;
   }
 
   async findAll(unreadOnly: boolean = false) {

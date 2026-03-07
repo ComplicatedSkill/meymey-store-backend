@@ -87,4 +87,24 @@ export class UsersService {
     if (error) throw error;
     return { message: 'User deleted successfully' };
   }
+
+  async saveDeviceToken(userId: string, token: string, deviceType?: string) {
+    const { data, error } = await this.supabaseService
+      .getAdminClient()
+      .from('user_device_tokens')
+      .upsert(
+        {
+          user_id: userId,
+          token: token,
+          device_type: deviceType,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id,token' },
+      )
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
 }

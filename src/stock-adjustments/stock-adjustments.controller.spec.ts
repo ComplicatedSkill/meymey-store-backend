@@ -9,7 +9,9 @@ describe('StockAdjustmentsController', () => {
       controllers: [StockAdjustmentsController],
     }).compile();
 
-    controller = module.get<StockAdjustmentsController>(StockAdjustmentsController);
+    controller = module.get<StockAdjustmentsController>(
+      StockAdjustmentsController,
+    );
   });
 
   it('should be defined', () => {
