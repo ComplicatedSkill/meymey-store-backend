@@ -19,6 +19,7 @@ import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
+  @UseGuards(SupabaseAuthGuard)
   @Post()
   create(@Body() createProductDto: CreateProductDto, @Request() req: any) {
     const storeId = req.user?.store?.id;
@@ -55,9 +56,11 @@ export class ProductsController {
     });
   }
 
+  @UseGuards(SupabaseAuthGuard)
   @Get('count')
-  getProductCount() {
-    return this.productsService.getProductCount();
+  getProductCount(@Request() req: any) {
+    const storeId = req.user?.store?.id;
+    return this.productsService.getProductCount(storeId);
   }
 
   @Get(':id')
@@ -65,6 +68,7 @@ export class ProductsController {
     return this.productsService.findOne(id);
   }
 
+  @UseGuards(SupabaseAuthGuard)
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -75,6 +79,7 @@ export class ProductsController {
     return this.productsService.update(id, updateProductDto, storeId);
   }
 
+  @UseGuards(SupabaseAuthGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.productsService.remove(id);

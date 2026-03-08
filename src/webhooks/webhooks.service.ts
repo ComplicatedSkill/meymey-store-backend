@@ -22,7 +22,17 @@ export class WebhooksService {
     }
     const storeId = store.id;
 
-    const { customer_name, customer_phone, items, notes, source } = orderData;
+    const {
+      customer_name,
+      customer_phone,
+      customer_address,
+      address,
+      items,
+      notes,
+      source,
+    } = orderData;
+    const finalPhone = customer_phone || orderData.phone;
+    const finalAddress = customer_address || address;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       throw new BadRequestException('Order must have at least one item');
@@ -31,6 +41,7 @@ export class WebhooksService {
     // Calculate totals and prepare items
     let total = 0;
     const orderItems: any[] = [];
+    const itemDetails: any[] = [];
 
     for (const item of items) {
       // Find product price
@@ -53,9 +64,20 @@ export class WebhooksService {
         variant_id: item.variant_id || null,
         quantity: item.quantity,
         unit_price: price,
-        subtotal: price * item.quantity,
+        total: price * item.quantity,
+      });
+
+      itemDetails.push({
+        name: product.name,
+        quantity: item.quantity,
+        price,
       });
     }
+
+    // Generate Order Number similar to SalesOrdersService
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const orderNumber = `SO-EXT-${timestamp}-${random}`;
 
     // Insert Sales Order
     const { data: order, error: orderError } = await this.supabaseService
@@ -63,17 +85,26 @@ export class WebhooksService {
       .from('sales_orders')
       .insert({
         store_id: storeId,
+        order_number: orderNumber,
         customer_name,
-        customer_phone,
+        customer_phone: finalPhone,
+        customer_address: finalAddress,
         notes,
+        subtotal: total,
         total_amount: total,
+        tax: 0,
+        discount: 0,
         status: 'PENDING',
         source: source || 'external_webhook',
+        order_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
       })
       .select()
       .single();
 
-    if (orderError) throw orderError;
+    if (orderError) {
+      console.error('Failed to insert external order:', orderError);
+      throw orderError;
+    }
 
     // Insert Items
     const itemsWithOrderId = orderItems.map((i: any) => ({
@@ -95,10 +126,16 @@ export class WebhooksService {
       await this.notificationsService.create(
         {
           type: 'new_order',
-          title: 'New External Order',
-          message: `A new order (${source || 'External'}) has been placed by ${customer_name || 'Customer'} for ${total}`,
+          title: `New Order from ${customer_name || 'Customer'}`,
+          message: `A new order has been placed by ${customer_name || 'Customer'} for ${total}`,
           data: {
             order_id: order.id,
+            order_number: orderNumber,
+            customer_name,
+            customer_phone: finalPhone,
+            customer_address: finalAddress,
+            items: itemDetails,
+            total_amount: total,
             source: source || 'external_webhook',
           },
         },

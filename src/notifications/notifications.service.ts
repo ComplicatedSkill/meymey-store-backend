@@ -21,15 +21,17 @@ export class NotificationsService {
       .single();
     if (error) throw error;
 
-    // Trigger push notification to a topic for the store
-    // This assumes administrators are subscribed to 'store_{storeId}' topic
-    if (storeId) {
+    // Trigger push notification to a global admin topic
+    // This allows administrators to receive alerts regardless of their current store context
+    try {
       await this.pushNotificationsService.sendToTopic(
-        `store_${storeId}`,
+        'admin_notifications',
         notification.title,
         notification.message,
         notification.data,
       );
+    } catch (e) {
+      console.error('Failed to send push notification to global topic:', e);
     }
 
     return notification;
@@ -112,6 +114,7 @@ export class NotificationsService {
 
   async createOrderStatusNotification(
     storeId: string | undefined,
+    orderId: string,
     orderNumber: string,
     oldStatus: string,
     newStatus: string,
@@ -122,6 +125,7 @@ export class NotificationsService {
         title: 'Order Status Updated',
         message: `Order ${orderNumber} status changed from ${oldStatus} to ${newStatus}`,
         data: {
+          order_id: orderId,
           order_number: orderNumber,
           old_status: oldStatus,
           new_status: newStatus,

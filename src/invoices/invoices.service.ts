@@ -53,7 +53,7 @@ export class InvoicesService {
       );
     }
 
-    if (salesOrder.status !== 'completed') {
+    if (salesOrder.status?.toLowerCase() !== 'completed') {
       throw new BadRequestException(
         'Can only create invoice from completed orders',
       );

@@ -7,7 +7,7 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 export class CategoriesService {
   constructor(private supabaseService: SupabaseService) {}
 
-  async create(createCategoryDto: CreateCategoryDto, storeId: string) {
+  async create(createCategoryDto: CreateCategoryDto) {
     // Note: categories table does not have store_id column - categories are global
     const { data, error } = await this.supabaseService
       .getClient()
@@ -20,7 +20,7 @@ export class CategoriesService {
     return data;
   }
 
-  async findAll(storeId?: string) {
+  async findAll() {
     // Categories are global - no store_id filter
     const { data, error } = await this.supabaseService
       .getClient()
@@ -32,7 +32,7 @@ export class CategoriesService {
     return data;
   }
 
-  async findOne(id: string, storeId?: string) {
+  async findOne(id: string) {
     const { data, error } = await this.supabaseService
       .getClient()
       .from('categories')
@@ -44,11 +44,7 @@ export class CategoriesService {
     return data;
   }
 
-  async update(
-    id: string,
-    updateCategoryDto: UpdateCategoryDto,
-    storeId: string,
-  ) {
+  async update(id: string, updateCategoryDto: UpdateCategoryDto) {
     const { data, error } = await this.supabaseService
       .getClient()
       .from('categories')
@@ -61,7 +57,7 @@ export class CategoriesService {
     return data;
   }
 
-  async remove(id: string, storeId: string) {
+  async remove(id: string) {
     const { error } = await this.supabaseService
       .getClient()
       .from('categories')

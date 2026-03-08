@@ -19,35 +19,34 @@ import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
+  @UseGuards(SupabaseAuthGuard)
   @Post()
-  create(@Body() createCategoryDto: CreateCategoryDto, @Request() req: any) {
-    const storeId = req.user.store?.id;
-    return this.categoriesService.create(createCategoryDto, storeId);
+  create(@Body() createCategoryDto: CreateCategoryDto) {
+    return this.categoriesService.create(createCategoryDto);
   }
 
   @Get()
-  findAll(@Query('storeId') storeId?: string) {
-    return this.categoriesService.findAll(storeId);
+  findAll() {
+    return this.categoriesService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @Query('storeId') storeId?: string) {
-    return this.categoriesService.findOne(id, storeId);
+  findOne(@Param('id') id: string) {
+    return this.categoriesService.findOne(id);
   }
 
+  @UseGuards(SupabaseAuthGuard)
   @Patch(':id')
   update(
     @Param('id') id: string,
     @Body() updateCategoryDto: UpdateCategoryDto,
-    @Request() req: any,
   ) {
-    const storeId = req.user.store?.id;
-    return this.categoriesService.update(id, updateCategoryDto, storeId);
+    return this.categoriesService.update(id, updateCategoryDto);
   }
 
+  @UseGuards(SupabaseAuthGuard)
   @Delete(':id')
-  remove(@Param('id') id: string, @Request() req: any) {
-    const storeId = req.user.store?.id;
-    return this.categoriesService.remove(id, storeId);
+  remove(@Param('id') id: string) {
+    return this.categoriesService.remove(id);
   }
 }

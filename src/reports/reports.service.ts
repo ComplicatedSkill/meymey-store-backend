@@ -63,30 +63,57 @@ export class ReportsService {
     };
   }
 
-  async getSummaryReport() {
-    const { data: salesData } = await this.supabaseService
+  async getSummaryReport(storeId: string) {
+    let salesQuery = this.supabaseService
       .getClient()
       .from('sales_orders')
-      .select('total_amount, status')
+      .select('total_amount', { count: 'exact', head: false })
       .filter('status', 'ilike', 'completed');
-    const totalSales =
-      salesData?.reduce((sum, o) => sum + Number(o.total_amount || 0), 0) || 0;
 
-    const { data: purchaseData } = await this.supabaseService
+    let purchaseQuery = this.supabaseService
       .getClient()
       .from('purchase_orders')
-      .select('total_amount')
+      .select('total_amount', { count: 'exact', head: false })
       .eq('status', 'RECEIVED');
-    const totalPurchases =
-      purchaseData?.reduce((sum, o) => sum + Number(o.total_amount || 0), 0) ||
-      0;
 
-    const { data: productData } = await this.supabaseService
+    let productQuery = this.supabaseService
       .getClient()
       .from('products')
       .select(
         'id, name, price, cost, reorder_level, stock:stock_batches(quantity_remaining)',
       );
+
+    let productCountQuery = this.supabaseService
+      .getClient()
+      .from('products')
+      .select('*', { count: 'exact', head: true });
+
+    if (storeId) {
+      salesQuery = salesQuery.eq('store_id', storeId);
+      purchaseQuery = purchaseQuery.eq('store_id', storeId);
+      productQuery = productQuery.eq('store_id', storeId);
+      productCountQuery = productCountQuery.eq('store_id', storeId);
+    }
+
+    const [
+      { data: salesData },
+      { data: purchaseData },
+      { data: productData },
+      { count: totalProducts },
+    ] = await Promise.all([
+      salesQuery,
+      purchaseQuery,
+      productQuery,
+      productCountQuery,
+    ]);
+
+    const totalSales =
+      salesData?.reduce((sum, o) => sum + Number(o.total_amount || 0), 0) || 0;
+
+    const totalPurchases =
+      purchaseData?.reduce((sum, o) => sum + Number(o.total_amount || 0), 0) ||
+      0;
+
     let totalInventoryValue = 0;
     let lowStockCount = 0;
     productData?.forEach((p) => {
@@ -101,7 +128,7 @@ export class ReportsService {
       totalPurchases,
       totalInventoryValue,
       lowStockCount,
-      productCount: productData?.length || 0,
+      productCount: totalProducts ?? 0,
     };
   }
 

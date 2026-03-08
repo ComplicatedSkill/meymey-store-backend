@@ -39,4 +39,18 @@ export class NotificationsController {
   remove(@Param('id') id: string) {
     return this.notificationsService.remove(id);
   }
+
+  @Post('test-push')
+  testPush() {
+    return this.notificationsService.create(
+      {
+        type: 'system',
+        title: 'Test Notification',
+        message:
+          'This is a manual test push notification to admin_notifications topic',
+        data: { test: 'true' },
+      },
+      undefined,
+    );
+  }
 }

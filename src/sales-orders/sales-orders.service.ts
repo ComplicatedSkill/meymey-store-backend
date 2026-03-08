@@ -213,6 +213,7 @@ export class SalesOrdersService {
       if (order) {
         await this.notificationsService.createOrderStatusNotification(
           order.store_id,
+          id,
           order.order_number,
           'Previous',
           status,

@@ -357,11 +357,17 @@ export class ProductsService {
     return { message: 'Product deleted successfully' };
   }
 
-  async getProductCount() {
-    const { count, error } = await this.supabaseService
+  async getProductCount(storeId?: string) {
+    let query = this.supabaseService
       .getClient()
       .from('products')
       .select('*', { count: 'exact', head: true });
+
+    if (storeId) {
+      query = query.eq('store_id', storeId);
+    }
+
+    const { count, error } = await query;
     if (error) throw error;
     return { count };
   }

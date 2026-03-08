@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Request } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 
@@ -16,8 +16,9 @@ export class ReportsController {
   }
 
   @Get('summary')
-  getSummaryReport() {
-    return this.reportsService.getSummaryReport();
+  getSummaryReport(@Request() req: any) {
+    const storeId = req.user?.store?.id;
+    return this.reportsService.getSummaryReport(storeId);
   }
 
   @Get('purchase')
