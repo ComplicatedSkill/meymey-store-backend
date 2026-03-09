@@ -27,6 +27,7 @@ import { StorefrontModule } from './storefront/storefront.module';
 import { UploadModule } from './upload/upload.module';
 import { BrandsModule } from './brands/brands.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     UploadModule,
     BrandsModule,
     WebhooksModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

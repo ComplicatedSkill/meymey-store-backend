@@ -126,6 +126,10 @@ export class SalesOrdersService {
   }
 
   async update(id: string, updateDto: UpdateSalesOrderDto) {
+    // Fetch the current order to know its existing status
+    const existingOrder = await this.findOne(id);
+    const wasCompleted = existingOrder.status?.toUpperCase() === 'COMPLETED';
+
     const { items, ...orderData } = updateDto;
     let updateData: any = {
       ...orderData,
@@ -133,18 +137,40 @@ export class SalesOrdersService {
       order_date: updateDto.order_date || undefined,
     };
 
+    // Step 1: If the order was previously COMPLETED, restore all stock back to batches
+    if (wasCompleted) {
+      await this.restoreStock(id);
+    }
+
+    // Step 2: Replace items if provided
     if (items && items.length > 0) {
+      // Validate stock for new items (only if order is/remains COMPLETED)
+      const newStatus =
+        updateDto.status?.toUpperCase() ?? existingOrder.status?.toUpperCase();
+      if (newStatus === 'COMPLETED') {
+        for (const item of items) {
+          await this.checkStockAvailability(
+            item.product_id,
+            item.variant_id ?? null,
+            item.quantity,
+          );
+        }
+      }
+
       const { subtotal, totalAmount } = this.calculateOrderTotals(
         items,
         updateDto.tax || 0,
         updateDto.discount || 0,
       );
       updateData = { ...updateData, subtotal, total_amount: totalAmount };
+
+      // Delete existing items and re-insert
       await this.supabaseService
         .getClient()
         .from('sales_order_items')
         .delete()
         .eq('sales_order_id', id);
+
       const orderItems = items.map((item) => ({
         sales_order_id: id,
         product_id: item.product_id,
@@ -160,6 +186,7 @@ export class SalesOrdersService {
         .insert(orderItems);
     }
 
+    // Step 3: Persist the order-level changes
     const { error } = await this.supabaseService
       .getClient()
       .from('sales_orders')
@@ -169,7 +196,67 @@ export class SalesOrdersService {
       .single();
     if (error)
       throw new NotFoundException(`Sales order with ID ${id} not found`);
+
+    // Step 4: If the order is still (or newly) COMPLETED, re-run FIFO stock deduction
+    const finalStatus =
+      updateDto.status?.toUpperCase() ?? existingOrder.status?.toUpperCase();
+    if (finalStatus === 'COMPLETED') {
+      await this.deductStock(id);
+    }
+
     return this.findOne(id);
+  }
+
+  /**
+   * Restore stock back to the original stock batches by reversing the
+   * FIFO allocations recorded in sales_order_item_costs.
+   */
+  private async restoreStock(orderId: string) {
+    // Gather all cost-allocation records for this order's items
+    const { data: orderItems, error: itemsError } = await this.supabaseService
+      .getClient()
+      .from('sales_order_items')
+      .select('id')
+      .eq('sales_order_id', orderId);
+    if (itemsError) throw itemsError;
+
+    if (!orderItems || orderItems.length === 0) return;
+
+    const itemIds = orderItems.map((i) => i.id);
+    const { data: costs, error: costsError } = await this.supabaseService
+      .getClient()
+      .from('sales_order_item_costs')
+      .select('batch_id, quantity')
+      .in('sales_order_item_id', itemIds);
+    if (costsError) throw costsError;
+
+    // Return each allocated quantity back to its batch
+    for (const cost of costs || []) {
+      const { data: batch, error: batchError } = await this.supabaseService
+        .getClient()
+        .from('stock_batches')
+        .select('quantity_remaining')
+        .eq('id', cost.batch_id)
+        .single();
+      if (batchError) continue; // batch may have been deleted; skip gracefully
+
+      await this.supabaseService
+        .getClient()
+        .from('stock_batches')
+        .update({
+          quantity_remaining: batch.quantity_remaining + cost.quantity,
+        })
+        .eq('id', cost.batch_id);
+    }
+
+    // Remove the old cost-allocation records so they can be re-created fresh
+    if (itemIds.length > 0) {
+      await this.supabaseService
+        .getClient()
+        .from('sales_order_item_costs')
+        .delete()
+        .in('sales_order_item_id', itemIds);
+    }
   }
 
   async updateStatus(id: string, status: string) {
