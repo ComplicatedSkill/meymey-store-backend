@@ -13,6 +13,10 @@ import {
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import {
+  BatchUpdateBrandDto,
+  BatchUpdateCategoryDto,
+} from './dto/batch-update-product.dto';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 
 @Controller('products')
@@ -77,6 +81,18 @@ export class ProductsController {
   ) {
     const storeId = req.user?.store?.id;
     return this.productsService.update(id, updateProductDto, storeId);
+  }
+
+  @UseGuards(SupabaseAuthGuard)
+  @Patch('batch-update/brand')
+  batchUpdateBrand(@Body() dto: BatchUpdateBrandDto) {
+    return this.productsService.batchUpdateBrand(dto);
+  }
+
+  @UseGuards(SupabaseAuthGuard)
+  @Patch('batch-update/category')
+  batchUpdateCategory(@Body() dto: BatchUpdateCategoryDto) {
+    return this.productsService.batchUpdateCategory(dto);
   }
 
   @UseGuards(SupabaseAuthGuard)

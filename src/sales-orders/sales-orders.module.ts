@@ -3,9 +3,10 @@ import { SalesOrdersService } from './sales-orders.service';
 import { SalesOrdersController } from './sales-orders.controller';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { ProductPackagesModule } from '../product-packages/product-packages.module';
 
 @Module({
-  imports: [SupabaseModule, NotificationsModule],
+  imports: [SupabaseModule, NotificationsModule, ProductPackagesModule],
   controllers: [SalesOrdersController],
   providers: [SalesOrdersService],
   exports: [SalesOrdersService],

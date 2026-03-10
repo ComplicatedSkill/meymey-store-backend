@@ -7,6 +7,10 @@ import {
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import {
+  BatchUpdateBrandDto,
+  BatchUpdateCategoryDto,
+} from './dto/batch-update-product.dto';
 
 @Injectable()
 export class ProductsService {
@@ -345,6 +349,60 @@ export class ProductsService {
     }
 
     return this.mapProduct(product);
+  }
+
+  async batchUpdateBrand(dto: BatchUpdateBrandDto) {
+    if (!dto.productIds || dto.productIds.length === 0) {
+      throw new BadRequestException('productIds must not be empty');
+    }
+
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('products')
+      .update({
+        brand_id: dto.brandId ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .in('id', dto.productIds)
+      .select('id');
+
+    if (error) {
+      throw new InternalServerErrorException(
+        `Failed to batch update brand: ${error.message}`,
+      );
+    }
+
+    return {
+      message: 'Brand updated successfully',
+      updatedCount: data?.length ?? 0,
+    };
+  }
+
+  async batchUpdateCategory(dto: BatchUpdateCategoryDto) {
+    if (!dto.productIds || dto.productIds.length === 0) {
+      throw new BadRequestException('productIds must not be empty');
+    }
+
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('products')
+      .update({
+        category_id: dto.categoryId ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .in('id', dto.productIds)
+      .select('id');
+
+    if (error) {
+      throw new InternalServerErrorException(
+        `Failed to batch update category: ${error.message}`,
+      );
+    }
+
+    return {
+      message: 'Category updated successfully',
+      updatedCount: data?.length ?? 0,
+    };
   }
 
   async remove(id: string) {

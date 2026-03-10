@@ -28,6 +28,7 @@ import { UploadModule } from './upload/upload.module';
 import { BrandsModule } from './brands/brands.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { PaymentsModule } from './payments/payments.module';
+import { ProductPackagesModule } from './product-packages/product-packages.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { PaymentsModule } from './payments/payments.module';
     BrandsModule,
     WebhooksModule,
     PaymentsModule,
+    ProductPackagesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

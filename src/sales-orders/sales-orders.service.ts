@@ -8,12 +8,14 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { CreateSalesOrderDto } from './dto/create-sales-order.dto';
 import { UpdateSalesOrderDto } from './dto/update-sales-order.dto';
 import { SalesOrderItemDto } from './dto/sales-order-item.dto';
+import { ProductPackagesService } from '../product-packages/product-packages.service';
 
 @Injectable()
 export class SalesOrdersService {
   constructor(
     private supabaseService: SupabaseService,
     private notificationsService: NotificationsService,
+    private productPackagesService: ProductPackagesService,
   ) {}
 
   private generateOrderNumber(): string {
@@ -46,11 +48,18 @@ export class SalesOrdersService {
       throw new BadRequestException('Sales order must have at least one item');
 
     for (const item of items) {
-      await this.checkStockAvailability(
-        item.product_id,
-        item.variant_id ?? null,
-        item.quantity,
-      );
+      if (item.package_id) {
+        await this.checkPackageStockAvailability(
+          item.package_id,
+          item.quantity,
+        );
+      } else {
+        await this.checkStockAvailability(
+          item.product_id!,
+          item.variant_id ?? null,
+          item.quantity,
+        );
+      }
     }
 
     const { subtotal, totalAmount } = this.calculateOrderTotals(
@@ -79,8 +88,9 @@ export class SalesOrdersService {
 
     const orderItems = items.map((item) => ({
       sales_order_id: order.id,
-      product_id: item.product_id,
-      variant_id: item.variant_id,
+      product_id: item.product_id || null,
+      package_id: item.package_id || null,
+      variant_id: item.variant_id || null,
       quantity: item.quantity,
       unit_price: item.unit_price,
       discount: item.discount || 0,
@@ -149,11 +159,18 @@ export class SalesOrdersService {
         updateDto.status?.toUpperCase() ?? existingOrder.status?.toUpperCase();
       if (newStatus === 'COMPLETED') {
         for (const item of items) {
-          await this.checkStockAvailability(
-            item.product_id,
-            item.variant_id ?? null,
-            item.quantity,
-          );
+          if (item.package_id) {
+            await this.checkPackageStockAvailability(
+              item.package_id,
+              item.quantity,
+            );
+          } else {
+            await this.checkStockAvailability(
+              item.product_id!,
+              item.variant_id ?? null,
+              item.quantity,
+            );
+          }
         }
       }
 
@@ -173,8 +190,9 @@ export class SalesOrdersService {
 
       const orderItems = items.map((item) => ({
         sales_order_id: id,
-        product_id: item.product_id,
-        variant_id: item.variant_id,
+        product_id: item.product_id || null,
+        package_id: item.package_id || null,
+        variant_id: item.variant_id || null,
         quantity: item.quantity,
         unit_price: item.unit_price,
         discount: item.discount || 0,
@@ -322,23 +340,57 @@ export class SalesOrdersService {
     if (error) throw error;
 
     for (const item of items) {
-      await this.allocateFIFO(
-        item.id,
-        item.product_id,
-        item.variant_id ?? null,
-        item.quantity,
-        item.sales_order.order_number,
-      );
+      if (item.package_id) {
+        const packageItems = await this.productPackagesService.getPackageItems(
+          item.package_id,
+        );
+        for (const pItem of packageItems) {
+          await this.allocateFIFO(
+            item.id,
+            pItem.product_id,
+            pItem.variant_id ?? null,
+            pItem.quantity * item.quantity,
+            item.sales_order.order_number,
+          );
+        }
+      } else {
+        await this.allocateFIFO(
+          item.id,
+          item.product_id,
+          item.variant_id ?? null,
+          item.quantity,
+          item.sales_order.order_number,
+        );
+      }
     }
 
-    const stockMovements = items.map((item: any) => ({
-      product_id: item.product_id,
-      variant_id: item.variant_id,
-      quantity: item.quantity,
-      type: 'out',
-      reference: `Sales Order: ${item.sales_order.order_number}`,
-      notes: `Stock deducted for sales order (FIFO)`,
-    }));
+    const stockMovements: any[] = [];
+    for (const item of items) {
+      if (item.package_id) {
+        const packageItems = await this.productPackagesService.getPackageItems(
+          item.package_id,
+        );
+        for (const pItem of packageItems) {
+          stockMovements.push({
+            product_id: pItem.product_id,
+            variant_id: pItem.variant_id,
+            quantity: pItem.quantity * item.quantity,
+            type: 'out',
+            reference: `Sales Order: ${item.sales_order.order_number} (Package)`,
+            notes: `Stock deducted for package item (FIFO)`,
+          });
+        }
+      } else {
+        stockMovements.push({
+          product_id: item.product_id,
+          variant_id: item.variant_id,
+          quantity: item.quantity,
+          type: 'out',
+          reference: `Sales Order: ${item.sales_order.order_number}`,
+          notes: `Stock deducted for sales order (FIFO)`,
+        });
+      }
+    }
     if (stockMovements.length > 0) {
       await this.supabaseService
         .getClient()
@@ -418,6 +470,21 @@ export class SalesOrdersService {
         .single();
       throw new BadRequestException(
         `Insufficient stock for "${product?.name || 'Product'}". Available: ${totalAvailable}, Requested: ${requestedQuantity}`,
+      );
+    }
+  }
+
+  private async checkPackageStockAvailability(
+    packageId: string,
+    requestedQuantity: number,
+  ) {
+    const packageItems =
+      await this.productPackagesService.getPackageItems(packageId);
+    for (const pItem of packageItems) {
+      await this.checkStockAvailability(
+        pItem.product_id,
+        pItem.variant_id ?? null,
+        pItem.quantity * requestedQuantity,
       );
     }
   }
