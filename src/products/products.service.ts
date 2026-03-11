@@ -194,40 +194,166 @@ export class ProductsService {
     const categoryId = params?.categoryId;
     const brandId = params?.brandId;
 
-    let query = this.supabaseService
+    const finalProducts: any[] = [];
+
+    // When filtering by 'package' category, return only packages
+    if (categoryId === 'package') {
+      let pkgQuery = this.supabaseService
+        .getClient()
+        .from('product_packages')
+        .select(
+          '*, items:product_package_items(*, product:products(*), variant:product_variants(*))',
+          { count: 'exact' },
+        )
+        .order('name', { ascending: true });
+
+      if (search) {
+        pkgQuery = pkgQuery.or(
+          `name.ilike.%${search}%,sku.ilike.%${search}%`,
+        );
+      }
+
+      const { data: packages, error: pkgError, count: pkgCount } =
+        await pkgQuery.range(offset, offset + limit - 1);
+
+      if (pkgError) throw pkgError;
+
+      finalProducts.push(
+        ...(packages || []).map((pkg) => ({
+          ...pkg,
+          is_package: true,
+          category: { id: 'package', name: 'Package' },
+        })),
+      );
+
+      return {
+        data: finalProducts,
+        total: pkgCount || 0,
+        page,
+        limit,
+        hasMore: offset + finalProducts.length < (pkgCount || 0),
+      };
+    }
+
+    // 1. Fetch Product Count
+    let productCountQuery = this.supabaseService
       .getClient()
       .from('products')
-      .select(
-        '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
-        { count: 'exact' },
-      )
-      .order('name', { ascending: true })
-      .range(offset, offset + limit - 1);
+      .select('*', { count: 'exact', head: true });
 
     if (search) {
-      query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%`);
+      productCountQuery = productCountQuery.or(
+        `name.ilike.%${search}%,sku.ilike.%${search}%`,
+      );
     }
-
-    if (categoryId && categoryId !== 'all' && categoryId !== 'uncategorized') {
-      query = query.eq('category_id', categoryId);
-    } else if (categoryId === 'uncategorized') {
-      query = query.is('category_id', null);
-    }
-
     if (brandId && brandId !== 'all') {
-      query = query.eq('brand_id', brandId);
+      productCountQuery = productCountQuery.eq('brand_id', brandId);
+    }
+    if (categoryId === 'uncategorized') {
+      productCountQuery = productCountQuery.is('category_id', null);
+    } else if (categoryId && categoryId !== 'all') {
+      productCountQuery = productCountQuery.eq('category_id', categoryId);
     }
 
-    const { data, error, count } = await query;
-    if (error) throw error;
+    // 2. Fetch Package Count — always included unless filtering by a specific category/brand
+    let packageCountQuery = this.supabaseService
+      .getClient()
+      .from('product_packages')
+      .select('*', { count: 'exact', head: true });
 
-    const products = (data || []).map((p: any) => this.mapProduct(p));
+    if (search) {
+      packageCountQuery = packageCountQuery.or(
+        `name.ilike.%${search}%,sku.ilike.%${search}%`,
+      );
+    }
+
+    const [{ count: productCount }, { count: pkgCount }] = await Promise.all([
+      productCountQuery,
+      packageCountQuery,
+    ]);
+
+    const total = (productCount || 0) + (pkgCount || 0);
+
+    // 3. Determine how many products to fetch for this page
+    const productsToFetchStart = Math.max(
+      0,
+      Math.min(productCount || 0, offset),
+    );
+    const productsToFetchEnd = Math.max(
+      0,
+      Math.min(productCount || 0, offset + limit),
+    );
+    const numProductsToFetch = productsToFetchEnd - productsToFetchStart;
+
+    if (numProductsToFetch > 0) {
+      let productDataQuery = this.supabaseService
+        .getClient()
+        .from('products')
+        .select(
+          '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+        );
+
+      if (search) {
+        productDataQuery = productDataQuery.or(
+          `name.ilike.%${search}%,sku.ilike.%${search}%`,
+        );
+      }
+      if (brandId && brandId !== 'all') {
+        productDataQuery = productDataQuery.eq('brand_id', brandId);
+      }
+      if (categoryId === 'uncategorized') {
+        productDataQuery = productDataQuery.is('category_id', null);
+      } else if (categoryId && categoryId !== 'all') {
+        productDataQuery = productDataQuery.eq('category_id', categoryId);
+      }
+
+      const { data: products, error: pError } = await productDataQuery
+        .order('name', { ascending: true })
+        .range(productsToFetchStart, productsToFetchEnd - 1);
+
+      if (pError) throw pError;
+      finalProducts.push(...(products || []).map((p) => this.mapProduct(p)));
+    }
+
+    // 4. Fill remaining slots in the page with packages
+    const packagesNeeded = limit - finalProducts.length;
+    if (packagesNeeded > 0) {
+      const packageOffset = Math.max(0, offset - (productCount || 0));
+      let packageQuery = this.supabaseService
+        .getClient()
+        .from('product_packages')
+        .select(
+          '*, items:product_package_items(*, product:products(*), variant:product_variants(*))',
+        )
+        .order('name', { ascending: true });
+
+      if (search) {
+        packageQuery = packageQuery.or(
+          `name.ilike.%${search}%,sku.ilike.%${search}%`,
+        );
+      }
+
+      const { data: pkgData, error: pkgError } = await packageQuery.range(
+        packageOffset,
+        packageOffset + packagesNeeded - 1,
+      );
+
+      if (pkgError) throw pkgError;
+      finalProducts.push(
+        ...(pkgData || []).map((pkg) => ({
+          ...pkg,
+          is_package: true,
+          category: { id: 'package', name: 'Package' },
+        })),
+      );
+    }
+
     return {
-      data: products,
-      total: count ?? 0,
+      data: finalProducts,
+      total,
       page,
       limit,
-      hasMore: offset + products.length < (count ?? 0),
+      hasMore: offset + finalProducts.length < total,
     };
   }
 
@@ -248,16 +374,33 @@ export class ProductsService {
       category: { id: string; name: string };
       products: any[];
     }> = [];
-    const uncategorized = result.data.filter((p) => !p.category_id);
+
+    // Filter out packages first to avoid them being labeled as 'uncategorized'
+    const packages = result.data.filter(
+      (p) => p.is_package || p.category_id === 'package',
+    );
+    const nonPackageProducts = result.data.filter((p) => !p.is_package);
+
+    const uncategorized = nonPackageProducts.filter((p) => !p.category_id);
     if (uncategorized.length > 0)
       grouped.push({
         category: { id: 'uncategorized', name: 'Uncategorized' },
         products: uncategorized,
       });
+
     for (const cat of categories || []) {
-      const catProducts = result.data.filter((p) => p.category_id === cat.id);
+      const catProducts = nonPackageProducts.filter(
+        (p) => p.category_id === cat.id,
+      );
       if (catProducts.length > 0)
         grouped.push({ category: cat, products: catProducts });
+    }
+
+    if (packages.length > 0) {
+      grouped.push({
+        category: { id: 'package', name: 'Package' },
+        products: packages,
+      });
     }
 
     return { ...result, grouped };

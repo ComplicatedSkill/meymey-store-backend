@@ -29,7 +29,8 @@ export class CategoriesService {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data;
+    const virtualCategories = [{ id: 'package', name: 'Package' }];
+    return [...(data || []), ...virtualCategories];
   }
 
   async findOne(id: string) {
