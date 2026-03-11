@@ -136,29 +136,42 @@ export class SalesOrdersService {
   }
 
   async update(id: string, updateDto: UpdateSalesOrderDto) {
-    // Fetch the current order to know its existing status
     const existingOrder = await this.findOne(id);
     const wasCompleted = existingOrder.status?.toUpperCase() === 'COMPLETED';
-
     const { items, ...orderData } = updateDto;
+    const finalStatus =
+      updateDto.status?.toUpperCase() ?? existingOrder.status?.toUpperCase();
+    const itemsChanged = !!(items && items.length > 0);
+
+    // Only restore stock if something that affects stock actually changed:
+    // - items were replaced (removed items must return stock)
+    // - OR status is moving away from COMPLETED (order cancelled/reverted)
+    const shouldRestoreStock =
+      wasCompleted && (itemsChanged || finalStatus !== 'COMPLETED');
+
+    // Only deduct stock if the order will be COMPLETED and stock hasn't been
+    // deducted yet for the current set of items:
+    // - was not completed before (first time completing)
+    // - OR items changed (old stock restored above, new items need deduction)
+    const shouldDeductStock =
+      finalStatus === 'COMPLETED' && (!wasCompleted || itemsChanged);
+
+    // Step 1: Restore stock for old items when needed
+    if (shouldRestoreStock) {
+      await this.restoreStock(id);
+    }
+
     let updateData: any = {
       ...orderData,
       updated_at: new Date().toISOString(),
       order_date: updateDto.order_date || undefined,
     };
 
-    // Step 1: If the order was previously COMPLETED, restore all stock back to batches
-    if (wasCompleted) {
-      await this.restoreStock(id);
-    }
-
     // Step 2: Replace items if provided
-    if (items && items.length > 0) {
-      // Validate stock for new items (only if order is/remains COMPLETED)
-      const newStatus =
-        updateDto.status?.toUpperCase() ?? existingOrder.status?.toUpperCase();
-      if (newStatus === 'COMPLETED') {
-        for (const item of items) {
+    if (itemsChanged) {
+      // Validate stock for new items only when the order will be COMPLETED
+      if (shouldDeductStock) {
+        for (const item of items!) {
           if (item.package_id) {
             await this.checkPackageStockAvailability(
               item.package_id,
@@ -175,20 +188,20 @@ export class SalesOrdersService {
       }
 
       const { subtotal, totalAmount } = this.calculateOrderTotals(
-        items,
-        updateDto.tax || 0,
-        updateDto.discount || 0,
+        items!,
+        updateDto.tax ?? existingOrder.tax ?? 0,
+        updateDto.discount ?? existingOrder.discount ?? 0,
       );
       updateData = { ...updateData, subtotal, total_amount: totalAmount };
 
-      // Delete existing items and re-insert
+      // Delete old items and re-insert new ones
       await this.supabaseService
         .getClient()
         .from('sales_order_items')
         .delete()
         .eq('sales_order_id', id);
 
-      const orderItems = items.map((item) => ({
+      const orderItems = items!.map((item) => ({
         sales_order_id: id,
         product_id: item.product_id || null,
         package_id: item.package_id || null,
@@ -198,10 +211,11 @@ export class SalesOrdersService {
         discount: item.discount || 0,
         total: this.calculateItemTotal(item),
       }));
-      await this.supabaseService
+      const { error: itemsError } = await this.supabaseService
         .getClient()
         .from('sales_order_items')
         .insert(orderItems);
+      if (itemsError) throw itemsError;
     }
 
     // Step 3: Persist the order-level changes
@@ -215,10 +229,8 @@ export class SalesOrdersService {
     if (error)
       throw new NotFoundException(`Sales order with ID ${id} not found`);
 
-    // Step 4: If the order is still (or newly) COMPLETED, re-run FIFO stock deduction
-    const finalStatus =
-      updateDto.status?.toUpperCase() ?? existingOrder.status?.toUpperCase();
-    if (finalStatus === 'COMPLETED') {
+    // Step 4: Deduct stock for the new items when needed
+    if (shouldDeductStock) {
       await this.deductStock(id);
     }
 
@@ -290,9 +302,21 @@ export class SalesOrdersService {
         `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
       );
     }
-    if (status.toLowerCase() === 'completed') {
+
+    const existingOrder = await this.findOne(id);
+    const wasCompleted = existingOrder.status?.toUpperCase() === 'COMPLETED';
+    const willBeCompleted = status.toLowerCase() === 'completed';
+
+    if (wasCompleted && !willBeCompleted) {
+      // Moving away from COMPLETED (e.g. → CANCELLED): return all stock
+      await this.restoreStock(id);
+    } else if (!wasCompleted && willBeCompleted) {
+      // Moving to COMPLETED for the first time: deduct stock
       await this.deductStock(id);
     }
+    // wasCompleted && willBeCompleted → already deducted, no-op
+    // !wasCompleted && !willBeCompleted → never deducted, no-op
+
     const { data, error } = await this.supabaseService
       .getClient()
       .from('sales_orders')
@@ -308,22 +332,13 @@ export class SalesOrdersService {
 
     // Trigger status update notification
     try {
-      const { data: order } = await this.supabaseService
-        .getClient()
-        .from('sales_orders')
-        .select('order_number, store_id')
-        .eq('id', id)
-        .single();
-
-      if (order) {
-        await this.notificationsService.createOrderStatusNotification(
-          order.store_id,
-          id,
-          order.order_number,
-          'Previous',
-          status,
-        );
-      }
+      await this.notificationsService.createOrderStatusNotification(
+        existingOrder.store_id,
+        id,
+        existingOrder.order_number,
+        existingOrder.status,
+        status,
+      );
     } catch (e) {
       console.error('Failed to trigger status notification:', e);
     }

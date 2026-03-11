@@ -13,27 +13,39 @@ export class PushNotificationsService {
 
   private initializeFirebase() {
     try {
+      const serviceAccountJson = this.configService.get<string>(
+        'FIREBASE_SERVICE_ACCOUNT_JSON',
+      );
       const serviceAccountPath = this.configService.get<string>(
         'FIREBASE_SERVICE_ACCOUNT_PATH',
       );
 
-      if (serviceAccountPath) {
+      if (admin.apps.length) {
+        this.initialized = true;
+        return;
+      }
+
+      if (serviceAccountJson) {
+        const serviceAccount = JSON.parse(serviceAccountJson);
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+        });
+        this.initialized = true;
+        console.log('Firebase Admin SDK initialized successfully (from JSON env)');
+      } else if (serviceAccountPath) {
         const absolutePath = path.isAbsolute(serviceAccountPath)
           ? serviceAccountPath
           : path.resolve(process.cwd(), serviceAccountPath);
 
         console.log(`Initializing Firebase Admin with: ${absolutePath}`);
-
-        if (!admin.apps.length) {
-          admin.initializeApp({
-            credential: admin.credential.cert(absolutePath),
-          });
-        }
+        admin.initializeApp({
+          credential: admin.credential.cert(absolutePath),
+        });
         this.initialized = true;
-        console.log('Firebase Admin SDK initialized successfully');
+        console.log('Firebase Admin SDK initialized successfully (from file)');
       } else {
         console.warn(
-          'FIREBASE_SERVICE_ACCOUNT_PATH not found in environment. Push notifications will be disabled.',
+          'Neither FIREBASE_SERVICE_ACCOUNT_JSON nor FIREBASE_SERVICE_ACCOUNT_PATH found. Push notifications will be disabled.',
         );
       }
     } catch (error) {

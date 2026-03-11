@@ -255,22 +255,36 @@ export class ProductsService {
       productCountQuery = productCountQuery.eq('category_id', categoryId);
     }
 
-    // 2. Fetch Package Count — always included unless filtering by a specific category/brand
-    let packageCountQuery = this.supabaseService
-      .getClient()
-      .from('product_packages')
-      .select('*', { count: 'exact', head: true });
+    // 2. Fetch Package Count — skip when filtering by brand or category (packages have neither)
+    const skipPackages =
+      (brandId && brandId !== 'all') ||
+      (categoryId && categoryId !== 'all' && categoryId !== 'uncategorized');
 
-    if (search) {
-      packageCountQuery = packageCountQuery.or(
-        `name.ilike.%${search}%,sku.ilike.%${search}%`,
-      );
+    let pkgCount: number | null = 0;
+    let productCount: number | null = 0;
+
+    if (skipPackages) {
+      const { count } = await productCountQuery;
+      productCount = count;
+    } else {
+      let packageCountQuery = this.supabaseService
+        .getClient()
+        .from('product_packages')
+        .select('*', { count: 'exact', head: true });
+
+      if (search) {
+        packageCountQuery = packageCountQuery.or(
+          `name.ilike.%${search}%,sku.ilike.%${search}%`,
+        );
+      }
+
+      const [{ count: pCount }, { count: pkCount }] = await Promise.all([
+        productCountQuery,
+        packageCountQuery,
+      ]);
+      productCount = pCount;
+      pkgCount = pkCount;
     }
-
-    const [{ count: productCount }, { count: pkgCount }] = await Promise.all([
-      productCountQuery,
-      packageCountQuery,
-    ]);
 
     const total = (productCount || 0) + (pkgCount || 0);
 
@@ -315,8 +329,8 @@ export class ProductsService {
       finalProducts.push(...(products || []).map((p) => this.mapProduct(p)));
     }
 
-    // 4. Fill remaining slots in the page with packages
-    const packagesNeeded = limit - finalProducts.length;
+    // 4. Fill remaining slots in the page with packages (skip when brand/category filter active)
+    const packagesNeeded = skipPackages ? 0 : limit - finalProducts.length;
     if (packagesNeeded > 0) {
       const packageOffset = Math.max(0, offset - (productCount || 0));
       let packageQuery = this.supabaseService

@@ -44,34 +44,59 @@ export class WebhooksService {
     const itemDetails: any[] = [];
 
     for (const item of items) {
-      // Find product price
-      const { data: product, error: pError } = await this.supabaseService
+      const resolvedId = item.package_id || item.product_id;
+
+      if (!resolvedId) {
+        throw new BadRequestException('Each item must have a product_id or package_id');
+      }
+
+      // Try product first
+      const { data: product } = await this.supabaseService
         .getAdminClient()
         .from('products')
         .select('price, name')
-        .eq('id', item.product_id)
-        .single();
+        .eq('id', resolvedId)
+        .maybeSingle();
 
-      if (pError || !product) {
-        throw new BadRequestException(`Product ${item.product_id} not found`);
+      if (product) {
+        const price = item.unit_price || product.price || 0;
+        total += price * item.quantity;
+        orderItems.push({
+          product_id: resolvedId,
+          package_id: null,
+          variant_id: item.variant_id || null,
+          quantity: item.quantity,
+          unit_price: price,
+          total: price * item.quantity,
+        });
+        itemDetails.push({ name: product.name, quantity: item.quantity, price });
+        continue;
       }
 
-      const price = item.unit_price || product.price || 0;
-      total += price * item.quantity;
+      // Fall back to package
+      const { data: pkg } = await this.supabaseService
+        .getAdminClient()
+        .from('product_packages')
+        .select('name, price')
+        .eq('id', resolvedId)
+        .maybeSingle();
 
-      orderItems.push({
-        product_id: item.product_id,
-        variant_id: item.variant_id || null,
-        quantity: item.quantity,
-        unit_price: price,
-        total: price * item.quantity,
-      });
+      if (pkg) {
+        const price = item.unit_price || pkg.price || 0;
+        total += price * item.quantity;
+        orderItems.push({
+          package_id: resolvedId,
+          product_id: null,
+          variant_id: null,
+          quantity: item.quantity,
+          unit_price: price,
+          total: price * item.quantity,
+        });
+        itemDetails.push({ name: pkg.name, quantity: item.quantity, price });
+        continue;
+      }
 
-      itemDetails.push({
-        name: product.name,
-        quantity: item.quantity,
-        price,
-      });
+      throw new BadRequestException(`No product or package found with ID ${resolvedId}`);
     }
 
     // Generate Order Number similar to SalesOrdersService
