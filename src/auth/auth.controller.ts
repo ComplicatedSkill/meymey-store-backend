@@ -6,12 +6,17 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
+import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
 import { SupabaseAuthGuard } from './supabase-auth.guard';
 
 class SignInDto {
+  @IsEmail()
   email: string;
+
+  @IsString()
+  @IsNotEmpty()
   password: string;
 }
 
