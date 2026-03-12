@@ -8,13 +8,11 @@ export class CategoriesService {
   constructor(private supabaseService: SupabaseService) {}
 
   async create(createCategoryDto: CreateCategoryDto) {
-    // Manually ensure image_url is not sent as it doesn't exist in DB
-    const { image_url, ...cleanDto } = createCategoryDto as any;
     // Note: categories table does not have store_id column - categories are global
     const { data, error } = await this.supabaseService
       .getAdminClient()
       .from('categories')
-      .insert({ ...cleanDto })
+      .insert({ ...createCategoryDto })
       .select()
       .single();
 
@@ -48,12 +46,10 @@ export class CategoriesService {
   }
 
   async update(id: string, updateCategoryDto: UpdateCategoryDto) {
-    // Manually ensure image_url is not sent as it doesn't exist in DB
-    const { image_url, ...cleanDto } = updateCategoryDto as any;
     const { data, error } = await this.supabaseService
       .getAdminClient()
       .from('categories')
-      .update({ ...cleanDto, updated_at: new Date().toISOString() })
+      .update({ ...updateCategoryDto, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select()
       .single();
