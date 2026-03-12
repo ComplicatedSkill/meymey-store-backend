@@ -16,6 +16,66 @@ export class ProductPackagesService {
     return this.supabaseService.getClient();
   }
 
+  private readonly PACKAGE_SELECT =
+    '*, items:product_package_items(*, product:products(*), variant:product_variants(*))';
+
+  /**
+   * Fetch stock_batches for a set of product IDs and compute how many
+   * complete packages can be assembled.
+   * stock_level = min over all component items of floor(component_stock / item.quantity)
+   */
+  private async attachStockLevel(packages: any[]): Promise<any[]> {
+    // Collect every unique product_id across all packages
+    const productIds = [
+      ...new Set(
+        packages.flatMap((pkg: any) =>
+          (pkg.items ?? []).map((i: any) => i.product_id).filter(Boolean),
+        ),
+      ),
+    ];
+
+    if (productIds.length === 0) return packages;
+
+    // Single query for all relevant stock batches
+    const { data: batches, error } = await this.client
+      .from('stock_batches')
+      .select('product_id, variant_id, quantity_remaining')
+      .in('product_id', productIds)
+      .gt('quantity_remaining', 0);
+
+    if (error) {
+      console.error('Failed to fetch stock batches for packages:', error);
+      return packages;
+    }
+
+    // Build a lookup: product_id → variant_id|'base' → total quantity_remaining
+    const stockMap = new Map<string, number>();
+    for (const b of batches ?? []) {
+      const key = `${b.product_id}::${b.variant_id ?? 'base'}`;
+      stockMap.set(key, (stockMap.get(key) ?? 0) + (b.quantity_remaining || 0));
+    }
+
+    const getStock = (productId: string, variantId?: string | null) =>
+      stockMap.get(`${productId}::${variantId ?? 'base'}`) ?? 0;
+
+    return packages.map((pkg: any) => {
+      if (!pkg.items || pkg.items.length === 0) {
+        return { ...pkg, stock_level: 0, cost: 0 };
+      }
+
+      let min = Infinity;
+      let totalCost = 0;
+      for (const item of pkg.items) {
+        const available = getStock(item.product_id, item.variant_id);
+        min = Math.min(min, Math.floor(available / (item.quantity || 1)));
+        const unitCost = item.variant?.cost ?? item.product?.cost ?? 0;
+        totalCost += unitCost * (item.quantity || 1);
+      }
+
+      return { ...pkg, stock_level: min === Infinity ? 0 : min, cost: totalCost };
+    });
+  }
+
   async create(dto: CreateProductPackageDto, storeId?: string) {
     if (!dto.items || dto.items.length === 0) {
       throw new BadRequestException(
@@ -81,28 +141,25 @@ export class ProductPackagesService {
   async findAll() {
     const { data, error } = await this.client
       .from('product_packages')
-      .select(
-        '*, items:product_package_items(*, product:products(*), variant:product_variants(*))',
-      )
+      .select(this.PACKAGE_SELECT)
       .order('name', { ascending: true });
 
     if (error) throw error;
-    return data;
+    return this.attachStockLevel(data ?? []);
   }
 
   async findOne(id: string) {
     const { data, error } = await this.client
       .from('product_packages')
-      .select(
-        '*, items:product_package_items(*, product:products(*), variant:product_variants(*))',
-      )
+      .select(this.PACKAGE_SELECT)
       .eq('id', id)
       .single();
 
     if (error || !data) {
       throw new NotFoundException(`Package with ID ${id} not found`);
     }
-    return data;
+    const [result] = await this.attachStockLevel([data]);
+    return result;
   }
 
   async update(id: string, dto: UpdateProductPackageDto) {

@@ -40,6 +40,43 @@ export class ProductsService {
     };
   }
 
+  private async attachPackageStockLevel(packages: any[]): Promise<any[]> {
+    const productIds = [
+      ...new Set(
+        packages.flatMap((pkg: any) =>
+          (pkg.items ?? []).map((i: any) => i.product_id).filter(Boolean),
+        ),
+      ),
+    ];
+    if (productIds.length === 0) return packages.map((p) => ({ ...p, stock_level: 0 }));
+
+    const { data: batches } = await this.supabaseService
+      .getClient()
+      .from('stock_batches')
+      .select('product_id, variant_id, quantity_remaining')
+      .in('product_id', productIds)
+      .gt('quantity_remaining', 0);
+
+    const stockMap = new Map<string, number>();
+    for (const b of batches ?? []) {
+      const key = `${b.product_id}::${b.variant_id ?? 'base'}`;
+      stockMap.set(key, (stockMap.get(key) ?? 0) + (b.quantity_remaining || 0));
+    }
+
+    return packages.map((pkg: any) => {
+      if (!pkg.items || pkg.items.length === 0) return { ...pkg, stock_level: 0, cost: 0 };
+      let min = Infinity;
+      let totalCost = 0;
+      for (const item of pkg.items) {
+        const available = stockMap.get(`${item.product_id}::${item.variant_id ?? 'base'}`) ?? 0;
+        min = Math.min(min, Math.floor(available / (item.quantity || 1)));
+        const unitCost = item.variant?.cost ?? item.product?.cost ?? 0;
+        totalCost += unitCost * (item.quantity || 1);
+      }
+      return { ...pkg, stock_level: min === Infinity ? 0 : min, cost: totalCost };
+    });
+  }
+
   private async getRecommendations(currentProduct: any, limit: number = 4) {
     const recommendations: any[] = [];
     const usedIds = new Set<string>([currentProduct.id]);
@@ -218,8 +255,9 @@ export class ProductsService {
 
       if (pkgError) throw pkgError;
 
+      const packagesWithStock = await this.attachPackageStockLevel(packages || []);
       finalProducts.push(
-        ...(packages || []).map((pkg) => ({
+        ...packagesWithStock.map((pkg) => ({
           ...pkg,
           is_package: true,
           category: { id: 'package', name: 'Package' },
@@ -353,8 +391,9 @@ export class ProductsService {
       );
 
       if (pkgError) throw pkgError;
+      const pkgDataWithStock = await this.attachPackageStockLevel(pkgData || []);
       finalProducts.push(
-        ...(pkgData || []).map((pkg) => ({
+        ...pkgDataWithStock.map((pkg) => ({
           ...pkg,
           is_package: true,
           category: { id: 'package', name: 'Package' },
