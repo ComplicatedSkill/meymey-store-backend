@@ -48,7 +48,8 @@ export class ProductsService {
         ),
       ),
     ];
-    if (productIds.length === 0) return packages.map((p) => ({ ...p, stock_level: 0 }));
+    if (productIds.length === 0)
+      return packages.map((p) => ({ ...p, stock_level: 0 }));
 
     const { data: batches } = await this.supabaseService
       .getClient()
@@ -64,16 +65,22 @@ export class ProductsService {
     }
 
     return packages.map((pkg: any) => {
-      if (!pkg.items || pkg.items.length === 0) return { ...pkg, stock_level: 0, cost: 0 };
+      if (!pkg.items || pkg.items.length === 0)
+        return { ...pkg, stock_level: 0, cost: 0 };
       let min = Infinity;
       let totalCost = 0;
       for (const item of pkg.items) {
-        const available = stockMap.get(`${item.product_id}::${item.variant_id ?? 'base'}`) ?? 0;
+        const available =
+          stockMap.get(`${item.product_id}::${item.variant_id ?? 'base'}`) ?? 0;
         min = Math.min(min, Math.floor(available / (item.quantity || 1)));
         const unitCost = item.variant?.cost ?? item.product?.cost ?? 0;
         totalCost += unitCost * (item.quantity || 1);
       }
-      return { ...pkg, stock_level: min === Infinity ? 0 : min, cost: totalCost };
+      return {
+        ...pkg,
+        stock_level: min === Infinity ? 0 : min,
+        cost: totalCost,
+      };
     });
   }
 
@@ -245,17 +252,20 @@ export class ProductsService {
         .order('name', { ascending: true });
 
       if (search) {
-        pkgQuery = pkgQuery.or(
-          `name.ilike.%${search}%,sku.ilike.%${search}%`,
-        );
+        pkgQuery = pkgQuery.or(`name.ilike.%${search}%,sku.ilike.%${search}%`);
       }
 
-      const { data: packages, error: pkgError, count: pkgCount } =
-        await pkgQuery.range(offset, offset + limit - 1);
+      const {
+        data: packages,
+        error: pkgError,
+        count: pkgCount,
+      } = await pkgQuery.range(offset, offset + limit - 1);
 
       if (pkgError) throw pkgError;
 
-      const packagesWithStock = await this.attachPackageStockLevel(packages || []);
+      const packagesWithStock = await this.attachPackageStockLevel(
+        packages || [],
+      );
       finalProducts.push(
         ...packagesWithStock.map((pkg) => ({
           ...pkg,
@@ -391,7 +401,9 @@ export class ProductsService {
       );
 
       if (pkgError) throw pkgError;
-      const pkgDataWithStock = await this.attachPackageStockLevel(pkgData || []);
+      const pkgDataWithStock = await this.attachPackageStockLevel(
+        pkgData || [],
+      );
       finalProducts.push(
         ...pkgDataWithStock.map((pkg) => ({
           ...pkg,

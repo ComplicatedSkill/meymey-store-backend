@@ -10,7 +10,7 @@ export class UomService {
   async create(createUomDto: CreateUomDto, storeId: string) {
     // Note: uom table does not have store_id column - UOMs are global
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('uom')
       .insert({ ...createUomDto })
       .select()
@@ -46,20 +46,26 @@ export class UomService {
 
   async update(id: string, updateUomDto: UpdateUomDto, storeId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('uom')
       .update(updateUomDto)
       .eq('id', id)
       .select()
       .single();
 
-    if (error) throw new NotFoundException(`UOM with ID ${id} not found`);
+    if (error) {
+      if (error.code === 'PGRST116') {
+        throw new NotFoundException(`UOM with ID ${id} not found`);
+      }
+      throw error;
+    }
+    if (!data) throw new NotFoundException(`UOM with ID ${id} not found`);
     return data;
   }
 
   async remove(id: string, storeId: string) {
     const { error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('uom')
       .delete()
       .eq('id', id);

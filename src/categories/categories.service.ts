@@ -8,11 +8,13 @@ export class CategoriesService {
   constructor(private supabaseService: SupabaseService) {}
 
   async create(createCategoryDto: CreateCategoryDto) {
+    // Manually ensure image_url is not sent as it doesn't exist in DB
+    const { image_url, ...cleanDto } = createCategoryDto as any;
     // Note: categories table does not have store_id column - categories are global
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('categories')
-      .insert({ ...createCategoryDto })
+      .insert({ ...cleanDto })
       .select()
       .single();
 
@@ -46,21 +48,29 @@ export class CategoriesService {
   }
 
   async update(id: string, updateCategoryDto: UpdateCategoryDto) {
+    // Manually ensure image_url is not sent as it doesn't exist in DB
+    const { image_url, ...cleanDto } = updateCategoryDto as any;
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('categories')
-      .update({ ...updateCategoryDto, updated_at: new Date().toISOString() })
+      .update({ ...cleanDto, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select()
       .single();
 
-    if (error) throw new NotFoundException(`Category with ID ${id} not found`);
+    if (error) {
+      if (error.code === 'PGRST116') {
+        throw new NotFoundException(`Category with ID ${id} not found`);
+      }
+      throw error;
+    }
+    if (!data) throw new NotFoundException(`Category with ID ${id} not found`);
     return data;
   }
 
   async remove(id: string) {
     const { error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('categories')
       .delete()
       .eq('id', id);
