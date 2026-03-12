@@ -518,7 +518,7 @@ export class ProductsService {
     const { variants, ...updateDtoWithoutVariants } = updateData;
 
     let updateQuery = this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('products')
       .update(updateDtoWithoutVariants)
       .eq('id', id);
@@ -565,7 +565,7 @@ export class ProductsService {
     }
 
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('products')
       .update({
         brand_id: dto.brandId ?? null,
@@ -592,7 +592,7 @@ export class ProductsService {
     }
 
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('products')
       .update({
         category_id: dto.categoryId ?? null,

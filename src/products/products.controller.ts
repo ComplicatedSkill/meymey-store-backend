@@ -73,17 +73,6 @@ export class ProductsController {
   }
 
   @UseGuards(SupabaseAuthGuard)
-  @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() updateProductDto: UpdateProductDto,
-    @Request() req: any,
-  ) {
-    const storeId = req.user?.store?.id;
-    return this.productsService.update(id, updateProductDto, storeId);
-  }
-
-  @UseGuards(SupabaseAuthGuard)
   @Patch('batch-update/brand')
   batchUpdateBrand(@Body() dto: BatchUpdateBrandDto) {
     return this.productsService.batchUpdateBrand(dto);
@@ -93,6 +82,17 @@ export class ProductsController {
   @Patch('batch-update/category')
   batchUpdateCategory(@Body() dto: BatchUpdateCategoryDto) {
     return this.productsService.batchUpdateCategory(dto);
+  }
+
+  @UseGuards(SupabaseAuthGuard)
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body() updateProductDto: UpdateProductDto,
+    @Request() req: any,
+  ) {
+    const storeId = req.user?.store?.id;
+    return this.productsService.update(id, updateProductDto, storeId);
   }
 
   @UseGuards(SupabaseAuthGuard)
