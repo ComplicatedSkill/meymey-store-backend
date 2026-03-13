@@ -368,7 +368,7 @@ export class SalesOrdersService {
           await this.allocateFIFO(
             item.id,
             pItem.product_id,
-            pItem.variant_id ?? null,
+            null, // allocate from any batch (same logic as stock check)
             pItem.quantity * item.quantity,
             item.sales_order.order_number,
           );
@@ -501,9 +501,12 @@ export class SalesOrdersService {
     const packageItems =
       await this.productPackagesService.getPackageItems(packageId);
     for (const pItem of packageItems) {
+      // Check total product stock without variant filter.
+      // Package stock is tracked at the product level (matching how stock_level
+      // is computed in attachStockLevel), so we ignore variant_id here.
       await this.checkStockAvailability(
         pItem.product_id,
-        pItem.variant_id ?? null,
+        null,
         pItem.quantity * requestedQuantity,
       );
     }
