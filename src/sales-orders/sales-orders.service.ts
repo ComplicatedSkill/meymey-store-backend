@@ -47,18 +47,23 @@ export class SalesOrdersService {
     if (!items || items.length === 0)
       throw new BadRequestException('Sales order must have at least one item');
 
-    for (const item of items) {
-      if (item.package_id) {
-        await this.checkPackageStockAvailability(
-          item.package_id,
-          item.quantity,
-        );
-      } else {
-        await this.checkStockAvailability(
-          item.product_id!,
-          item.variant_id ?? null,
-          item.quantity,
-        );
+    const willBeCompleted =
+      (createDto.status || 'DRAFT').toUpperCase() === 'COMPLETED';
+
+    if (willBeCompleted) {
+      for (const item of items) {
+        if (item.package_id) {
+          await this.checkPackageStockAvailability(
+            item.package_id,
+            item.quantity,
+          );
+        } else {
+          await this.checkStockAvailability(
+            item.product_id!,
+            item.variant_id ?? null,
+            item.quantity,
+          );
+        }
       }
     }
 
