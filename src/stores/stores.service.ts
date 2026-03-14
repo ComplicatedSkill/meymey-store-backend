@@ -9,7 +9,7 @@ export class StoresService {
 
   async create(createStoreDto: CreateStoreDto, userId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stores')
       .insert({ ...createStoreDto, user_id: userId })
       .select()
@@ -21,7 +21,7 @@ export class StoresService {
 
   async findAll(userId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stores')
       .select('*')
       .eq('user_id', userId)
@@ -33,7 +33,7 @@ export class StoresService {
 
   async findOne(id: string, userId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stores')
       .select('*')
       .eq('id', id)
@@ -46,7 +46,7 @@ export class StoresService {
 
   async update(id: string, updateStoreDto: UpdateStoreDto, userId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stores')
       .update({ ...updateStoreDto, updated_at: new Date().toISOString() })
       .eq('id', id)
@@ -60,7 +60,7 @@ export class StoresService {
 
   async remove(id: string, userId: string) {
     const { error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stores')
       .delete()
       .eq('id', id)

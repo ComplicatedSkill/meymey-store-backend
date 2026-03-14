@@ -11,7 +11,7 @@ export class ExchangeRatesService {
     const payload: any = { ...createDto };
     if (storeId) payload.store_id = storeId;
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('exchange_rates')
       .insert(payload)
       .select()
@@ -22,7 +22,7 @@ export class ExchangeRatesService {
 
   async findAll() {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('exchange_rates')
       .select('*')
       .order('effective_date', { ascending: false });
@@ -32,7 +32,7 @@ export class ExchangeRatesService {
 
   async findOne(id: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('exchange_rates')
       .select('*')
       .eq('id', id)
@@ -47,7 +47,7 @@ export class ExchangeRatesService {
       return { from_currency: fromCurrency, to_currency: toCurrency, rate: 1 };
 
     const { data: directRate } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('exchange_rates')
       .select('*')
       .eq('from_currency', fromCurrency)
@@ -59,7 +59,7 @@ export class ExchangeRatesService {
     if (directRate) return directRate;
 
     const { data: inverseRate } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('exchange_rates')
       .select('*')
       .eq('from_currency', toCurrency)
@@ -95,7 +95,7 @@ export class ExchangeRatesService {
 
   async update(id: string, updateDto: UpdateExchangeRateDto) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('exchange_rates')
       .update(updateDto)
       .eq('id', id)
@@ -108,7 +108,7 @@ export class ExchangeRatesService {
 
   async remove(id: string) {
     const { error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('exchange_rates')
       .delete()
       .eq('id', id);

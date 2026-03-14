@@ -84,7 +84,7 @@ export class SalesOrdersService {
     if (storeId) payload.store_id = storeId;
 
     const { data: order, error: orderError } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('sales_orders')
       .insert(payload)
       .select()
@@ -102,7 +102,7 @@ export class SalesOrdersService {
       total: this.calculateItemTotal(item),
     }));
     const { error: itemsError } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('sales_order_items')
       .insert(orderItems);
     if (itemsError) throw itemsError;
@@ -116,7 +116,7 @@ export class SalesOrdersService {
 
   async findAll() {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('sales_orders')
       .select(
         '*, customer:customers(*), items:sales_order_items(*, product:products(*), variant:product_variants(*))',
@@ -128,7 +128,7 @@ export class SalesOrdersService {
 
   async findOne(id: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('sales_orders')
       .select(
         '*, customer:customers(*), items:sales_order_items(*, product:products(*), variant:product_variants(*))',
@@ -201,7 +201,7 @@ export class SalesOrdersService {
 
       // Delete old items and re-insert new ones
       await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('sales_order_items')
         .delete()
         .eq('sales_order_id', id);
@@ -217,7 +217,7 @@ export class SalesOrdersService {
         total: this.calculateItemTotal(item),
       }));
       const { error: itemsError } = await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('sales_order_items')
         .insert(orderItems);
       if (itemsError) throw itemsError;
@@ -225,7 +225,7 @@ export class SalesOrdersService {
 
     // Step 3: Persist the order-level changes
     const { error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('sales_orders')
       .update(updateData)
       .eq('id', id)
@@ -249,7 +249,7 @@ export class SalesOrdersService {
   private async restoreStock(orderId: string) {
     // Gather all cost-allocation records for this order's items
     const { data: orderItems, error: itemsError } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('sales_order_items')
       .select('id')
       .eq('sales_order_id', orderId);
@@ -259,7 +259,7 @@ export class SalesOrdersService {
 
     const itemIds = orderItems.map((i) => i.id);
     const { data: costs, error: costsError } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('sales_order_item_costs')
       .select('batch_id, quantity')
       .in('sales_order_item_id', itemIds);
@@ -268,7 +268,7 @@ export class SalesOrdersService {
     // Return each allocated quantity back to its batch
     for (const cost of costs || []) {
       const { data: batch, error: batchError } = await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('stock_batches')
         .select('quantity_remaining')
         .eq('id', cost.batch_id)
@@ -276,7 +276,7 @@ export class SalesOrdersService {
       if (batchError) continue; // batch may have been deleted; skip gracefully
 
       await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('stock_batches')
         .update({
           quantity_remaining: batch.quantity_remaining + cost.quantity,
@@ -287,7 +287,7 @@ export class SalesOrdersService {
     // Remove the old cost-allocation records so they can be re-created fresh
     if (itemIds.length > 0) {
       await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('sales_order_item_costs')
         .delete()
         .in('sales_order_item_id', itemIds);
@@ -323,7 +323,7 @@ export class SalesOrdersService {
     // !wasCompleted && !willBeCompleted → never deducted, no-op
 
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('sales_orders')
       .update({
         status: status.toUpperCase(),
@@ -353,7 +353,7 @@ export class SalesOrdersService {
 
   private async deductStock(orderId: string) {
     const { data: items, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('sales_order_items')
       .select('*, sales_order:sales_orders!inner(order_number)')
       .eq('sales_order_id', orderId);
@@ -413,7 +413,7 @@ export class SalesOrdersService {
     }
     if (stockMovements.length > 0) {
       await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('stock_movements')
         .insert(stockMovements);
     }
@@ -427,7 +427,7 @@ export class SalesOrdersService {
     orderNumber: string,
   ) {
     let query = this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stock_batches')
       .select('*')
       .eq('product_id', productId)
@@ -442,13 +442,13 @@ export class SalesOrdersService {
       if (remaining <= 0) break;
       const allocateQty = Math.min(batch.quantity_remaining, remaining);
       await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('stock_batches')
         .update({ quantity_remaining: batch.quantity_remaining - allocateQty })
         .eq('id', batch.id);
       remaining -= allocateQty;
       await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('sales_order_item_costs')
         .insert({
           sales_order_item_id: salesOrderItemId,
@@ -470,7 +470,7 @@ export class SalesOrdersService {
     requestedQuantity: number,
   ) {
     let query = this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stock_batches')
       .select('quantity_remaining')
       .eq('product_id', productId)
@@ -483,7 +483,7 @@ export class SalesOrdersService {
       batches?.reduce((sum, b) => sum + (b.quantity_remaining || 0), 0) || 0;
     if (totalAvailable < requestedQuantity) {
       const { data: product } = await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('products')
         .select('name')
         .eq('id', productId)
@@ -517,7 +517,7 @@ export class SalesOrdersService {
     if (order.status !== 'DRAFT')
       throw new BadRequestException('Only draft orders can be deleted');
     const { error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('sales_orders')
       .delete()
       .eq('id', id);

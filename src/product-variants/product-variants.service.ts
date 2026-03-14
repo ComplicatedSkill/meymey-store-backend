@@ -9,7 +9,7 @@ export class ProductVariantsService {
 
   async create(createDto: CreateProductVariantDto, storeId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('product_variants')
       .insert({ ...createDto, store_id: storeId })
       .select('*, product:products(*)')
@@ -21,7 +21,7 @@ export class ProductVariantsService {
 
   async findAll(storeId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('product_variants')
       .select('*, product:products(*)')
       .eq('store_id', storeId)
@@ -33,7 +33,7 @@ export class ProductVariantsService {
 
   async findByProduct(productId: string, storeId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('product_variants')
       .select('*')
       .eq('product_id', productId)
@@ -46,7 +46,7 @@ export class ProductVariantsService {
 
   async findOne(id: string, storeId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('product_variants')
       .select('*, product:products(*)')
       .eq('id', id)
@@ -64,7 +64,7 @@ export class ProductVariantsService {
     storeId: string,
   ) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('product_variants')
       .update(updateDto)
       .eq('id', id)
@@ -79,7 +79,7 @@ export class ProductVariantsService {
 
   async remove(id: string, storeId: string) {
     const { error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('product_variants')
       .delete()
       .eq('id', id)

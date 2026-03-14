@@ -9,7 +9,7 @@ export class TaxesService {
 
   async create(createDto: CreateTaxDto, storeId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('taxes')
       .insert({ ...createDto, store_id: storeId })
       .select()
@@ -21,7 +21,7 @@ export class TaxesService {
 
   async findAll(storeId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('taxes')
       .select('*')
       .eq('store_id', storeId)
@@ -33,7 +33,7 @@ export class TaxesService {
 
   async findOne(id: string, storeId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('taxes')
       .select('*')
       .eq('id', id)
@@ -47,7 +47,7 @@ export class TaxesService {
 
   async update(id: string, updateDto: UpdateTaxDto, storeId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('taxes')
       .update({ ...updateDto, updated_at: new Date().toISOString() })
       .eq('id', id)
@@ -61,7 +61,7 @@ export class TaxesService {
 
   async remove(id: string, storeId: string) {
     const { error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('taxes')
       .delete()
       .eq('id', id)

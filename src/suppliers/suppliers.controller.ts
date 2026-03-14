@@ -7,7 +7,6 @@ import {
   Param,
   Delete,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import {
   SuppliersService,
@@ -22,9 +21,8 @@ export class SuppliersController {
   constructor(private readonly suppliersService: SuppliersService) {}
 
   @Post()
-  create(@Body() createSupplierDto: CreateSupplierDto, @Request() req: any) {
-    const storeId = req.user?.store?.id;
-    return this.suppliersService.create(createSupplierDto, storeId);
+  create(@Body() createSupplierDto: CreateSupplierDto) {
+    return this.suppliersService.create(createSupplierDto);
   }
 
   @Get()

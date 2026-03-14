@@ -167,7 +167,7 @@ export class PaymentsService {
       );
 
       const { data: payment, error } = await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('payments')
         .insert({
           invoice_id: invoiceId,
@@ -218,7 +218,7 @@ export class PaymentsService {
       );
 
       const { data: payment, error } = await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('payments')
         .insert({
           amount,
@@ -282,7 +282,7 @@ export class PaymentsService {
 
   private async markPaymentCompleted(tranId: string) {
     const { data: payment, error: fetchError } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('payments')
       .select('*')
       .eq('external_reference', tranId)
@@ -291,7 +291,7 @@ export class PaymentsService {
     if (fetchError || !payment || payment.status === 'completed') return;
 
     await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('payments')
       .update({ status: 'completed', updated_at: new Date().toISOString() })
       .eq('id', payment.id);
@@ -333,7 +333,7 @@ export class PaymentsService {
       if (invoice) payload.store_id = invoice.store_id;
     } else if (salesOrderId) {
       const { data: order } = await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('sales_orders')
         .select('store_id')
         .eq('id', salesOrderId)
@@ -342,7 +342,7 @@ export class PaymentsService {
     }
 
     const { data: payment, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('payments')
       .insert(payload)
       .select()
@@ -363,7 +363,7 @@ export class PaymentsService {
 
   async findByInvoice(invoiceId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('payments')
       .select('*, payment_method:payment_methods(name)')
       .eq('invoice_id', invoiceId)

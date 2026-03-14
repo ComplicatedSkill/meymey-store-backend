@@ -12,7 +12,7 @@ export class PaymentMethodsService {
     const payload: any = { ...createDto };
     if (storeId) payload.store_id = storeId;
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('payment_methods')
       .insert(payload)
       .select()
@@ -23,7 +23,7 @@ export class PaymentMethodsService {
 
   async findAll() {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('payment_methods')
       .select('*')
       .order('created_at', { ascending: false });
@@ -33,7 +33,7 @@ export class PaymentMethodsService {
 
   async findActive() {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('payment_methods')
       .select('*')
       .eq('is_active', true)
@@ -44,7 +44,7 @@ export class PaymentMethodsService {
 
   async findOne(id: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('payment_methods')
       .select('*')
       .eq('id', id)
@@ -57,7 +57,7 @@ export class PaymentMethodsService {
   async update(id: string, updateDto: UpdatePaymentMethodDto) {
     if (updateDto.is_default) await this.unsetAllDefaults();
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('payment_methods')
       .update(updateDto)
       .eq('id', id)
@@ -71,7 +71,7 @@ export class PaymentMethodsService {
   async setDefault(id: string) {
     await this.unsetAllDefaults();
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('payment_methods')
       .update({ is_default: true })
       .eq('id', id)
@@ -84,7 +84,7 @@ export class PaymentMethodsService {
 
   private async unsetAllDefaults() {
     await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('payment_methods')
       .update({ is_default: false })
       .eq('is_default', true);
@@ -92,7 +92,7 @@ export class PaymentMethodsService {
 
   async remove(id: string) {
     const { error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('payment_methods')
       .delete()
       .eq('id', id);

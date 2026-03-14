@@ -11,7 +11,7 @@ export class CustomersService {
     const payload: any = { ...createDto };
     if (storeId) payload.store_id = storeId;
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('customers')
       .insert(payload)
       .select()
@@ -22,7 +22,7 @@ export class CustomersService {
 
   async findAll() {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('customers')
       .select('*')
       .order('created_at', { ascending: false });
@@ -32,7 +32,7 @@ export class CustomersService {
 
   async findOne(id: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('customers')
       .select('*')
       .eq('id', id)
@@ -43,7 +43,7 @@ export class CustomersService {
 
   async update(id: string, updateDto: UpdateCustomerDto) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('customers')
       .update({ ...updateDto, updated_at: new Date().toISOString() })
       .eq('id', id)
@@ -55,7 +55,7 @@ export class CustomersService {
 
   async remove(id: string) {
     const { error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('customers')
       .delete()
       .eq('id', id);

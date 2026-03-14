@@ -14,7 +14,7 @@ export class NotificationsService {
     const payload: any = { ...createDto };
     if (storeId) payload.store_id = storeId;
     const { data: notification, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('notifications')
       .insert(payload)
       .select()
@@ -39,7 +39,7 @@ export class NotificationsService {
 
   async findAll(unreadOnly: boolean = false) {
     let query = this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('notifications')
       .select('*')
       .order('created_at', { ascending: false });
@@ -51,7 +51,7 @@ export class NotificationsService {
 
   async getUnreadCount() {
     const { count, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('notifications')
       .select('*', { count: 'exact', head: true })
       .eq('is_read', false);
@@ -61,7 +61,7 @@ export class NotificationsService {
 
   async markAsRead(id: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('notifications')
       .update({ is_read: true })
       .eq('id', id)
@@ -73,7 +73,7 @@ export class NotificationsService {
 
   async markAllAsRead() {
     const { error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('notifications')
       .update({ is_read: true })
       .eq('is_read', false);
@@ -83,7 +83,7 @@ export class NotificationsService {
 
   async remove(id: string) {
     const { error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('notifications')
       .delete()
       .eq('id', id);

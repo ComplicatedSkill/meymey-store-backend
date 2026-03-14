@@ -52,7 +52,7 @@ export class ProductsService {
       return packages.map((p) => ({ ...p, stock_level: 0 }));
 
     const { data: batches } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stock_batches')
       .select('product_id, variant_id, quantity_remaining')
       .in('product_id', productIds)
@@ -91,7 +91,7 @@ export class ProductsService {
     // 1. Same Category
     if (currentProduct.category_id) {
       const { data: catProducts } = await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('products')
         .select(
           '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
@@ -112,7 +112,7 @@ export class ProductsService {
 
     // 2. Same Brand
     const { data: brandProducts } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('products')
       .select(
         '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
@@ -135,7 +135,7 @@ export class ProductsService {
     // We'll fetch more products and sort them in memory or just fetch recent ones if stock join is complex.
     // For now, let's fetch products with stock info and sort.
     const { data: topStockProducts } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('products')
       .select(
         '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
@@ -173,7 +173,7 @@ export class ProductsService {
 
     // Check for duplicate SKU
     const skuQuery = this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('products')
       .select('id')
       .eq('sku', productDtoWithoutVariants.sku);
@@ -187,7 +187,7 @@ export class ProductsService {
     }
 
     const { data: product, error: productError } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('products')
       .insert(productDtoWithoutVariants)
       .select(
@@ -204,12 +204,12 @@ export class ProductsService {
         ...(storeId ? { store_id: storeId } : {}),
       }));
       const { error: variantsError } = await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('product_variants')
         .insert(variantsWithProductId);
       if (variantsError) {
         await this.supabaseService
-          .getClient()
+          .getAdminClient()
           .from('products')
           .delete()
           .eq('id', product.id);
@@ -243,7 +243,7 @@ export class ProductsService {
     // When filtering by 'package' category, return only packages
     if (categoryId === 'package') {
       let pkgQuery = this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('product_packages')
         .select(
           '*, items:product_package_items(*, product:products(*), variant:product_variants(*))',
@@ -285,7 +285,7 @@ export class ProductsService {
 
     // 1. Fetch Product Count
     let productCountQuery = this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('products')
       .select('*', { count: 'exact', head: true });
 
@@ -316,7 +316,7 @@ export class ProductsService {
       productCount = count;
     } else {
       let packageCountQuery = this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('product_packages')
         .select('*', { count: 'exact', head: true });
 
@@ -349,7 +349,7 @@ export class ProductsService {
 
     if (numProductsToFetch > 0) {
       let productDataQuery = this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('products')
         .select(
           '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
@@ -382,7 +382,7 @@ export class ProductsService {
     if (packagesNeeded > 0) {
       const packageOffset = Math.max(0, offset - (productCount || 0));
       let packageQuery = this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('product_packages')
         .select(
           '*, items:product_package_items(*, product:products(*), variant:product_variants(*))',
@@ -429,7 +429,7 @@ export class ProductsService {
   }) {
     const result = await this.findAll(params);
     const { data: categories } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('categories')
       .select('*')
       .order('name', { ascending: true });
@@ -473,7 +473,7 @@ export class ProductsService {
 
   async findOne(id: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('products')
       .select(
         '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
@@ -494,7 +494,7 @@ export class ProductsService {
   ) {
     // First verify the product exists (scoped to store if provided)
     let findQuery = this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('products')
       .select('id')
       .eq('id', id);
@@ -538,7 +538,7 @@ export class ProductsService {
 
     if (variants) {
       await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('product_variants')
         .delete()
         .eq('product_id', id);
@@ -548,7 +548,7 @@ export class ProductsService {
           product_id: id,
         }));
         const { error: variantsError } = await this.supabaseService
-          .getClient()
+          .getAdminClient()
           .from('product_variants')
           .insert(variantsWithProductId);
         if (variantsError) throw variantsError;
@@ -615,7 +615,7 @@ export class ProductsService {
 
   async remove(id: string) {
     const { error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('products')
       .delete()
       .eq('id', id);
@@ -625,7 +625,7 @@ export class ProductsService {
 
   async getProductCount(storeId?: string) {
     let query = this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('products')
       .select('*', { count: 'exact', head: true });
 

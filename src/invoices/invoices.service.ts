@@ -27,7 +27,7 @@ export class InvoicesService {
     };
 
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('invoices')
       .insert(invoiceData)
       .select()
@@ -40,7 +40,7 @@ export class InvoicesService {
   async createFromSalesOrder(salesOrderId: string, storeId: string) {
     // Get the sales order with items
     const { data: salesOrder, error: orderError } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('sales_orders')
       .select('*, items:sales_order_items(*, product:products(name))')
       .eq('id', salesOrderId)
@@ -61,7 +61,7 @@ export class InvoicesService {
 
     // Check if invoice already exists for this order
     const { data: existingInvoice } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('invoices')
       .select('id')
       .eq('sales_order_id', salesOrderId)
@@ -75,7 +75,7 @@ export class InvoicesService {
 
     // Create the invoice
     const { data: invoice, error: invoiceError } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('invoices')
       .insert({
         store_id: storeId,
@@ -107,7 +107,7 @@ export class InvoicesService {
 
     if (invoiceItems.length > 0) {
       const { error: itemsError } = await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('invoice_items')
         .insert(invoiceItems);
 
@@ -119,7 +119,7 @@ export class InvoicesService {
 
   async findAll(storeId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('invoices')
       .select(
         '*, customer:customers(*), sales_order:sales_orders(order_number)',
@@ -133,7 +133,7 @@ export class InvoicesService {
 
   async findOne(id: string, storeId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('invoices')
       .select(
         '*, customer:customers(*), sales_order:sales_orders(order_number), items:invoice_items(*, product:products(*), variant:product_variants(*))',
@@ -148,7 +148,7 @@ export class InvoicesService {
 
   async update(id: string, updateDto: UpdateInvoiceDto, storeId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('invoices')
       .update({ ...updateDto, updated_at: new Date().toISOString() })
       .eq('id', id)
@@ -192,7 +192,7 @@ export class InvoicesService {
     }
 
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('invoices')
       .update({
         amount_paid: newAmountPaid,
@@ -216,7 +216,7 @@ export class InvoicesService {
     }
 
     const { error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('invoices')
       .delete()
       .eq('id', id)

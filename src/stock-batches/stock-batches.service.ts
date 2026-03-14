@@ -31,7 +31,7 @@ export class StockBatchesService {
     };
 
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stock_batches')
       .insert(batchData)
       .select('*, product:products(*), variant:product_variants(*)')
@@ -44,7 +44,7 @@ export class StockBatchesService {
   async findAll(storeId: string) {
     // stock_batches doesn't have store_id - return all
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stock_batches')
       .select(
         '*, product:products(*), variant:product_variants(*), purchase_order:purchase_orders(order_number)',
@@ -57,7 +57,7 @@ export class StockBatchesService {
 
   async findByProduct(productId: string, storeId: string, variantId?: string) {
     let query = this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stock_batches')
       .select('*, product:products(*), variant:product_variants(*)')
       .eq('product_id', productId)
@@ -76,7 +76,7 @@ export class StockBatchesService {
 
   async findOne(id: string, storeId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stock_batches')
       .select('*, product:products(*), variant:product_variants(*)')
       .eq('id', id)
@@ -93,7 +93,7 @@ export class StockBatchesService {
     variantId?: string,
   ) {
     let query = this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stock_batches')
       .select('quantity_remaining')
       .eq('product_id', productId)
@@ -153,7 +153,7 @@ export class StockBatchesService {
       // Update batch remaining quantity
       const newRemaining = batch.quantity_remaining - allocateQty;
       await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('stock_batches')
         .update({ quantity_remaining: newRemaining })
         .eq('id', batch.id);
@@ -196,7 +196,7 @@ export class StockBatchesService {
 
     // Or add back to the most recent batch
     const { data: latestBatch } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stock_batches')
       .select('*')
       .eq('product_id', productId)
@@ -206,7 +206,7 @@ export class StockBatchesService {
 
     if (latestBatch) {
       const { data, error } = await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('stock_batches')
         .update({
           quantity_remaining: latestBatch.quantity_remaining + quantity,
@@ -224,7 +224,7 @@ export class StockBatchesService {
 
   async remove(id: string, storeId: string) {
     const { error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stock_batches')
       .delete()
       .eq('id', id);

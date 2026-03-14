@@ -1,33 +1,19 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { CreateSupplierDto } from './dto/create-supplier.dto';
+import { UpdateSupplierDto } from './dto/update-supplier.dto';
 
-export class CreateSupplierDto {
-  name: string;
-  contact_name?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-}
-
-export class UpdateSupplierDto {
-  name?: string;
-  contact_name?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-}
+export { CreateSupplierDto, UpdateSupplierDto };
 
 @Injectable()
 export class SuppliersService {
   constructor(private supabaseService: SupabaseService) {}
 
-  async create(createSupplierDto: CreateSupplierDto, storeId?: string) {
-    const payload: any = { ...createSupplierDto };
-    if (storeId) payload.store_id = storeId;
+  async create(createSupplierDto: CreateSupplierDto) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('suppliers')
-      .insert(payload)
+      .insert({ ...createSupplierDto })
       .select()
       .single();
     if (error) throw error;
@@ -36,7 +22,7 @@ export class SuppliersService {
 
   async findAll() {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('suppliers')
       .select('*')
       .order('name', { ascending: true });
@@ -46,7 +32,7 @@ export class SuppliersService {
 
   async findOne(id: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('suppliers')
       .select('*')
       .eq('id', id)
@@ -57,7 +43,7 @@ export class SuppliersService {
 
   async update(id: string, updateSupplierDto: UpdateSupplierDto) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('suppliers')
       .update(updateSupplierDto)
       .eq('id', id)
@@ -69,7 +55,7 @@ export class SuppliersService {
 
   async remove(id: string) {
     const { error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('suppliers')
       .delete()
       .eq('id', id);

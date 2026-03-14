@@ -11,7 +11,7 @@ export class StockMovementsService {
     // Note: stock_movements table does not have store_id column
     // We filter by product's store_id instead
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stock_movements')
       .insert({ ...createDto })
       .select('*, product:products(*), variant:product_variants(*)')
@@ -24,7 +24,7 @@ export class StockMovementsService {
   async findAll(storeId: string) {
     // Filter stock movements by products that belong to the store
     const { data: products } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('products')
       .select('id')
       .eq('store_id', storeId);
@@ -36,7 +36,7 @@ export class StockMovementsService {
     }
 
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stock_movements')
       .select('*, product:products(*), variant:product_variants(*)')
       .in('product_id', productIds)
@@ -48,7 +48,7 @@ export class StockMovementsService {
 
   async findByProduct(productId: string, storeId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stock_movements')
       .select('*, product:products(*), variant:product_variants(*)')
       .eq('product_id', productId)
@@ -60,7 +60,7 @@ export class StockMovementsService {
 
   async findOne(id: string, storeId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stock_movements')
       .select('*, product:products(*), variant:product_variants(*)')
       .eq('id', id)
@@ -73,7 +73,7 @@ export class StockMovementsService {
 
   async update(id: string, updateDto: UpdateStockMovementDto, storeId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stock_movements')
       .update(updateDto)
       .eq('id', id)
@@ -87,7 +87,7 @@ export class StockMovementsService {
 
   async remove(id: string, storeId: string) {
     const { error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stock_movements')
       .delete()
       .eq('id', id);
@@ -98,7 +98,7 @@ export class StockMovementsService {
 
   async getStockLevel(productId: string, storeId: string, variantId?: string) {
     let query = this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stock_movements')
       .select('quantity, type')
       .eq('product_id', productId);
