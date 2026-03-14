@@ -17,6 +17,7 @@ export class PurchaseOrdersService {
 
   async create(createDto: CreatePurchaseOrderDto) {
     const { items, ...orderData } = createDto;
+    if (!orderData.status) orderData.status = 'pending';
 
     const { data: order, error: orderError } = await this.supabaseService
       .getAdminClient()
@@ -99,7 +100,7 @@ export class PurchaseOrdersService {
       .getAdminClient()
       .from('purchase_orders')
       .update({
-        status: status.toUpperCase(),
+        status: status.toLowerCase(),
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)

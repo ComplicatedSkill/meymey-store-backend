@@ -7,7 +7,7 @@ import {
   Min,
   IsIn,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 export class PurchaseOrderItemDto {
   @IsString()
@@ -39,8 +39,9 @@ export class CreatePurchaseOrderDto {
   supplier_name?: string;
 
   @IsOptional()
+  @Transform(({ value }) => (value ? value.toLowerCase() : 'pending'))
   @IsIn(['pending', 'approved', 'received', 'cancelled'])
-  status?: 'pending' | 'approved' | 'received' | 'cancelled';
+  status: 'pending' | 'approved' | 'received' | 'cancelled' = 'pending';
 
   @IsOptional()
   @IsNumber()
