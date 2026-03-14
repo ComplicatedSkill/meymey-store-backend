@@ -7,14 +7,11 @@ import { UpdateBrandDto } from './dto/update-brand.dto';
 export class BrandsService {
   constructor(private supabaseService: SupabaseService) {}
 
-  async create(createBrandDto: CreateBrandDto, storeId?: string) {
-    const payload: any = { ...createBrandDto };
-    if (storeId) payload.store_id = storeId;
-
+  async create(createBrandDto: CreateBrandDto) {
     const { data, error } = await this.supabaseService
       .getAdminClient()
       .from('brands')
-      .insert(payload)
+      .insert({ ...createBrandDto })
       .select()
       .single();
 
