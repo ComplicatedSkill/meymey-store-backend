@@ -2,6 +2,8 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreatePurchaseOrderDto } from './dto/create-purchase-order.dto';
@@ -9,20 +11,23 @@ import { UpdatePurchaseOrderDto } from './dto/update-purchase-order.dto';
 
 @Injectable()
 export class PurchaseOrdersService {
+  private readonly logger = new Logger(PurchaseOrdersService.name);
+
   constructor(private supabaseService: SupabaseService) {}
 
-  async create(createDto: CreatePurchaseOrderDto, storeId?: string) {
+  async create(createDto: CreatePurchaseOrderDto) {
     const { items, ...orderData } = createDto;
-    const payload: any = { ...orderData };
-    if (storeId) payload.store_id = storeId;
 
     const { data: order, error: orderError } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('purchase_orders')
-      .insert(payload)
+      .insert(orderData)
       .select()
       .single();
-    if (orderError) throw orderError;
+    if (orderError) {
+      this.logger.error('Create purchase order error', { code: orderError.code, message: orderError.message, details: orderError.details });
+      throw new InternalServerErrorException(orderError.message);
+    }
 
     if (items && items.length > 0) {
       const inventoryItems = items.map((item) => ({
@@ -30,7 +35,7 @@ export class PurchaseOrdersService {
         purchase_order_id: order.id,
       }));
       const { error: itemError } = await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('purchase_inventory')
         .insert(inventoryItems);
       if (itemError) console.error('Error creating PO items:', itemError);
@@ -41,7 +46,7 @@ export class PurchaseOrdersService {
 
   async findAll() {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('purchase_orders')
       .select(
         '*, supplier:suppliers(*), items:purchase_inventory(*, product:products(*), variant:product_variants(*))',
@@ -53,7 +58,7 @@ export class PurchaseOrdersService {
 
   async findOne(id: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('purchase_orders')
       .select(
         '*, supplier:suppliers(*), items:purchase_inventory(*, product:products(*), variant:product_variants(*))',
@@ -67,7 +72,7 @@ export class PurchaseOrdersService {
 
   async update(id: string, updateDto: UpdatePurchaseOrderDto) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('purchase_orders')
       .update({ ...updateDto, updated_at: new Date().toISOString() })
       .eq('id', id)
@@ -91,7 +96,7 @@ export class PurchaseOrdersService {
     }
 
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('purchase_orders')
       .update({
         status: status.toUpperCase(),
@@ -121,7 +126,7 @@ export class PurchaseOrdersService {
     }));
 
     const { error: batchError } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stock_batches')
       .insert(stockBatches);
     if (batchError) throw batchError;
@@ -135,13 +140,13 @@ export class PurchaseOrdersService {
       notes: `Stock received from purchase order`,
     }));
     await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stock_movements')
       .insert(stockMovements);
 
     for (const item of order.items) {
       await this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('purchase_inventory')
         .update({ received_quantity: item.quantity })
         .eq('id', item.id);
@@ -150,7 +155,7 @@ export class PurchaseOrdersService {
 
   async remove(id: string) {
     const { error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('purchase_orders')
       .delete()
       .eq('id', id);

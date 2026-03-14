@@ -7,7 +7,6 @@ import {
   Param,
   Delete,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import { PurchaseOrdersService } from './purchase-orders.service';
 import { CreatePurchaseOrderDto } from './dto/create-purchase-order.dto';
@@ -20,9 +19,8 @@ export class PurchaseOrdersController {
   constructor(private readonly service: PurchaseOrdersService) {}
 
   @Post()
-  create(@Body() createDto: CreatePurchaseOrderDto, @Request() req: any) {
-    const storeId = req.user?.store?.id;
-    return this.service.create(createDto, storeId);
+  create(@Body() createDto: CreatePurchaseOrderDto) {
+    return this.service.create(createDto);
   }
 
   @Get()

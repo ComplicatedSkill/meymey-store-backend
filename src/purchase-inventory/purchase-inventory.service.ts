@@ -9,7 +9,7 @@ export class PurchaseInventoryService {
 
   async create(createDto: CreatePurchaseInventoryDto) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('purchase_inventory')
       .insert(createDto)
       .select(
@@ -23,7 +23,7 @@ export class PurchaseInventoryService {
 
   async findAll() {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('purchase_inventory')
       .select(
         '*, product:products(*), variant:product_variants(*), purchase_order:purchase_orders(*)',
@@ -36,7 +36,7 @@ export class PurchaseInventoryService {
 
   async findByPurchaseOrder(purchaseOrderId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('purchase_inventory')
       .select('*, product:products(*), variant:product_variants(*)')
       .eq('purchase_order_id', purchaseOrderId)
@@ -48,7 +48,7 @@ export class PurchaseInventoryService {
 
   async findOne(id: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('purchase_inventory')
       .select(
         '*, product:products(*), variant:product_variants(*), purchase_order:purchase_orders(*)',
@@ -65,7 +65,7 @@ export class PurchaseInventoryService {
 
   async update(id: string, updateDto: UpdatePurchaseInventoryDto) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('purchase_inventory')
       .update(updateDto)
       .eq('id', id)
@@ -83,7 +83,7 @@ export class PurchaseInventoryService {
 
   async remove(id: string) {
     const { error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('purchase_inventory')
       .delete()
       .eq('id', id);
