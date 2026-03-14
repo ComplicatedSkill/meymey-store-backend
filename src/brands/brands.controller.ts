@@ -34,8 +34,9 @@ export class BrandsController {
 
   @UseGuards(SupabaseAuthGuard)
   @Post()
-  create(@Body() createBrandDto: CreateBrandDto) {
-    return this.brandsService.create(createBrandDto);
+  create(@Body() createBrandDto: CreateBrandDto, @Request() req: any) {
+    const storeId = req.user?.store?.id;
+    return this.brandsService.create(createBrandDto, storeId);
   }
 
   @UseGuards(SupabaseAuthGuard)
