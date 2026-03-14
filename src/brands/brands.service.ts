@@ -1,10 +1,18 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  InternalServerErrorException,
+  ConflictException,
+  Logger,
+} from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 
 @Injectable()
 export class BrandsService {
+  private readonly logger = new Logger(BrandsService.name);
+
   constructor(private supabaseService: SupabaseService) {}
 
   async create(createBrandDto: CreateBrandDto) {
@@ -15,7 +23,11 @@ export class BrandsService {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      this.logger.error('Create brand error', { code: error.code, message: error.message, details: error.details, hint: error.hint });
+      if (error.code === '23505') throw new ConflictException('A brand with that name already exists');
+      throw new InternalServerErrorException(error.message);
+    }
     return data;
   }
 
