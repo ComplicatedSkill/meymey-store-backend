@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { SignUpDto } from './dto/signup.dto';
@@ -102,14 +103,31 @@ export class AuthService {
   }
 
   async signIn(email: string, password: string) {
-    const { data, error } = await this.supabaseService
-      .getClient()
-      .auth.signInWithPassword({
-        email,
-        password,
-      });
+    let data: any, error: any;
+    try {
+      ({ data, error } = await this.supabaseService
+        .getClient()
+        .auth.signInWithPassword({
+          email,
+          password,
+        }));
+    } catch (err) {
+      throw new ServiceUnavailableException(
+        'Cannot connect to authentication service. Please try again later.',
+      );
+    }
 
     if (error) {
+      if (
+        error.message?.includes('fetch') ||
+        error.message?.includes('timeout') ||
+        error.message?.includes('network') ||
+        error.code === 'UND_ERR_CONNECT_TIMEOUT'
+      ) {
+        throw new ServiceUnavailableException(
+          'Cannot connect to authentication service. Please try again later.',
+        );
+      }
       throw new UnauthorizedException(error.message);
     }
 
