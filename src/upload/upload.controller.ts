@@ -91,6 +91,33 @@ export class UploadController {
     }
   }
 
+  @Post('package')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadPackageImage(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    const fileExt = file.originalname.split('.').pop();
+    const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}.${fileExt}`;
+    const filePath = `packages/${fileName}`;
+
+    try {
+      const publicUrl = await this.supabaseService.uploadFile(
+        'stores',
+        filePath,
+        file.buffer,
+        file.mimetype,
+      );
+
+      return { url: publicUrl };
+    } catch (error) {
+      throw new BadRequestException(
+        'Failed to upload package image: ' + error.message,
+      );
+    }
+  }
+
   @Post('brand')
   @UseInterceptors(FileInterceptor('file'))
   async uploadBrandImage(@UploadedFile() file: Express.Multer.File) {
