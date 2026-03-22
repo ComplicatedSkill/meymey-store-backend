@@ -13,7 +13,7 @@ export class ProductPackagesService {
   constructor(private supabaseService: SupabaseService) {}
 
   private get client() {
-    return this.supabaseService.getClient();
+    return this.supabaseService.getAdminClient();
   }
 
   private readonly PACKAGE_SELECT =

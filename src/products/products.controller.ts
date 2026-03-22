@@ -37,6 +37,9 @@ export class ProductsController {
     @Query('search') search?: string,
     @Query('categoryId') categoryId?: string,
     @Query('brandId') brandId?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: string,
+    @Query('inStock') inStock?: string,
   ) {
     return this.productsService.findAll({
       page: page ? parseInt(page, 10) : undefined,
@@ -44,6 +47,9 @@ export class ProductsController {
       search,
       categoryId,
       brandId,
+      sortBy,
+      sortOrder: sortOrder === 'desc' ? 'desc' : 'asc',
+      inStock: inStock === 'true',
     });
   }
 

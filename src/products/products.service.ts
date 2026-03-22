@@ -16,6 +16,59 @@ import {
 export class ProductsService {
   constructor(private supabaseService: SupabaseService) {}
 
+  /**
+   * Returns true if a search token looks like an acronym (e.g. "boj", "hm").
+   * Heuristic: 2–5 letters, all alphabetic.
+   */
+  private isLikelyAcronym(token: string): boolean {
+    return token.length >= 2 && token.length <= 5 && /^[a-zA-Z]+$/.test(token);
+  }
+
+  /**
+   * Builds a PostgreSQL POSIX regex that matches a product name where each
+   * letter of `token` is the start of a consecutive word.
+   * e.g. "boj" → "\mb[^ -]*[ -]+\mo[^ -]*[ -]+\mj[^ -]*"
+   * which matches "Beauty Of Josoen-Sun Cream" (case-insensitive via ~*)
+   */
+  private buildAcronymRegex(token: string): string {
+    const letters = token.toLowerCase().split('');
+    return letters
+      .map((letter, i) => {
+        const part = `\\m${letter}[^ -]*`;
+        return i < letters.length - 1 ? part + '[ -]+' : part;
+      })
+      .join('');
+  }
+
+  /**
+   * Applies token-aware smart search filters to a Supabase query.
+   * Each token is AND-ed (chained filter calls).
+   * Short tokens also try acronym regex matching.
+   * `includeDescription` — set false for tables without a description column.
+   */
+  private applySearchFilters(
+    query: any,
+    search: string,
+    includeDescription = true,
+  ): any {
+    const tokens = search.trim().split(/\s+/).filter(Boolean);
+
+    for (const token of tokens) {
+      const baseCondition = includeDescription
+        ? `name.ilike.%${token}%,sku.ilike.%${token}%,description.ilike.%${token}%`
+        : `name.ilike.%${token}%,sku.ilike.%${token}%`;
+
+      if (this.isLikelyAcronym(token)) {
+        const acronymRegex = this.buildAcronymRegex(token);
+        query = query.or(`${baseCondition},name.imatch.${acronymRegex}`);
+      } else {
+        query = query.or(baseCondition);
+      }
+    }
+
+    return query;
+  }
+
   private mapProduct(product: any) {
     if (!product) return null;
     const stockBatches = product.stock || [];
@@ -269,6 +322,9 @@ export class ProductsService {
     search?: string;
     categoryId?: string;
     brandId?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    inStock?: boolean;
   }) {
     const page = params?.page ?? 1;
     const limit = params?.limit ?? 30;
@@ -276,6 +332,10 @@ export class ProductsService {
     const search = params?.search?.trim();
     const categoryId = params?.categoryId;
     const brandId = params?.brandId;
+    const sortOrder = params?.sortOrder ?? 'asc';
+    const allowedSortFields = ['name', 'price', 'created_at'];
+    const sortBy = allowedSortFields.includes(params?.sortBy ?? '') ? params!.sortBy! : 'name';
+    const inStock = params?.inStock ?? false;
 
     // Pre-fetch product IDs for category filter via junction table
     let categoryProductIds: string[] | null = null;
@@ -286,6 +346,17 @@ export class ProductsService {
         .select('product_id')
         .eq('category_id', categoryId);
       categoryProductIds = catLinks?.map((l) => l.product_id) ?? [];
+    }
+
+    // Pre-fetch product IDs that have stock when inStock filter is active
+    let inStockProductIds: string[] | null = null;
+    if (inStock) {
+      const { data: stockData } = await this.supabaseService
+        .getAdminClient()
+        .from('stock_batches')
+        .select('product_id')
+        .gt('quantity_remaining', 0);
+      inStockProductIds = [...new Set((stockData ?? []).map((s: any) => s.product_id).filter(Boolean))];
     }
 
     const finalProducts: any[] = [];
@@ -299,10 +370,10 @@ export class ProductsService {
           '*, items:product_package_items(*, product:products(*), variant:product_variants(*))',
           { count: 'exact' },
         )
-        .order('name', { ascending: true });
+        .order('name', { ascending: sortOrder === 'asc' });
 
       if (search) {
-        pkgQuery = pkgQuery.or(`name.ilike.%${search}%,sku.ilike.%${search}%`);
+        pkgQuery = this.applySearchFilters(pkgQuery, search, false);
       }
 
       const {
@@ -340,9 +411,7 @@ export class ProductsService {
       .select('*', { count: 'exact', head: true });
 
     if (search) {
-      productCountQuery = productCountQuery.or(
-        `name.ilike.%${search}%,sku.ilike.%${search}%`,
-      );
+      productCountQuery = this.applySearchFilters(productCountQuery, search);
     }
     if (brandId && brandId !== 'all') {
       productCountQuery = productCountQuery.eq('brand_id', brandId);
@@ -354,6 +423,13 @@ export class ProductsService {
         productCountQuery = productCountQuery.eq('id', '00000000-0000-0000-0000-000000000000');
       } else {
         productCountQuery = productCountQuery.in('id', categoryProductIds);
+      }
+    }
+    if (inStockProductIds !== null) {
+      if (inStockProductIds.length === 0) {
+        productCountQuery = productCountQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+      } else {
+        productCountQuery = productCountQuery.in('id', inStockProductIds);
       }
     }
 
@@ -375,9 +451,7 @@ export class ProductsService {
         .select('*', { count: 'exact', head: true });
 
       if (search) {
-        packageCountQuery = packageCountQuery.or(
-          `name.ilike.%${search}%,sku.ilike.%${search}%`,
-        );
+        packageCountQuery = this.applySearchFilters(packageCountQuery, search, false);
       }
 
       const [{ count: pCount }, { count: pkCount }] = await Promise.all([
@@ -410,9 +484,7 @@ export class ProductsService {
         );
 
       if (search) {
-        productDataQuery = productDataQuery.or(
-          `name.ilike.%${search}%,sku.ilike.%${search}%`,
-        );
+        productDataQuery = this.applySearchFilters(productDataQuery, search);
       }
       if (brandId && brandId !== 'all') {
         productDataQuery = productDataQuery.eq('brand_id', brandId);
@@ -426,9 +498,16 @@ export class ProductsService {
           productDataQuery = productDataQuery.in('id', categoryProductIds);
         }
       }
+      if (inStockProductIds !== null) {
+        if (inStockProductIds.length === 0) {
+          productDataQuery = productDataQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+        } else {
+          productDataQuery = productDataQuery.in('id', inStockProductIds);
+        }
+      }
 
       const { data: products, error: pError } = await productDataQuery
-        .order('name', { ascending: true })
+        .order(sortBy, { ascending: sortOrder === 'asc' })
         .range(productsToFetchStart, productsToFetchEnd - 1);
 
       if (pError) throw pError;
@@ -445,12 +524,10 @@ export class ProductsService {
         .select(
           '*, items:product_package_items(*, product:products(*), variant:product_variants(*))',
         )
-        .order('name', { ascending: true });
+        .order('name', { ascending: sortOrder === 'asc' });
 
       if (search) {
-        packageQuery = packageQuery.or(
-          `name.ilike.%${search}%,sku.ilike.%${search}%`,
-        );
+        packageQuery = this.applySearchFilters(packageQuery, search, false);
       }
 
       const { data: pkgData, error: pkgError } = await packageQuery.range(
