@@ -31,6 +31,11 @@ export class CreateProductDto {
   category_id?: string;
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  category_ids?: string[];
+
+  @IsOptional()
   @IsString()
   brand_id?: string;
 

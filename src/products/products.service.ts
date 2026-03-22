@@ -32,12 +32,38 @@ export class ProductsService {
           0,
         ),
     }));
+
+    const categories = (product.all_categories || [])
+      .map((pc: any) => pc.category)
+      .filter(Boolean);
+
     return {
       ...product,
+      categories: categories.length > 0 ? categories : product.category ? [product.category] : [],
+      all_categories: undefined,
       stock_level: totalStock,
       variants: variantsWithStock,
       stock: undefined,
     };
+  }
+
+  private async syncProductCategories(productId: string, categoryIds: string[]) {
+    await this.supabaseService
+      .getAdminClient()
+      .from('product_categories')
+      .delete()
+      .eq('product_id', productId);
+
+    if (categoryIds.length > 0) {
+      const rows = categoryIds.map((cId) => ({
+        product_id: productId,
+        category_id: cId,
+      }));
+      await this.supabaseService
+        .getAdminClient()
+        .from('product_categories')
+        .insert(rows);
+    }
   }
 
   private async attachPackageStockLevel(packages: any[]): Promise<any[]> {
@@ -94,7 +120,7 @@ export class ProductsService {
         .getAdminClient()
         .from('products')
         .select(
-          '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+          '*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
         )
         .eq('category_id', currentProduct.category_id)
         .neq('id', currentProduct.id)
@@ -115,7 +141,7 @@ export class ProductsService {
       .getAdminClient()
       .from('products')
       .select(
-        '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+        '*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
       )
       .eq('brand_id', currentProduct.brand_id)
       .neq('id', currentProduct.id)
@@ -138,7 +164,7 @@ export class ProductsService {
       .getAdminClient()
       .from('products')
       .select(
-        '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+        '*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
       )
       .neq('id', currentProduct.id)
       .limit(limit * 2); // Fetch more to filter out usedIds and sort
@@ -169,7 +195,17 @@ export class ProductsService {
     if (productData.brand_id === '') productData.brand_id = null;
     if (productData.uom_id === '') productData.uom_id = null;
 
-    const { variants, ...productDtoWithoutVariants } = productData;
+    const { variants, category_ids, ...productDtoWithoutVariants } = productData;
+
+    // Resolve category_ids: prefer category_ids array, fall back to single category_id
+    const resolvedCategoryIds: string[] = category_ids?.length
+      ? category_ids
+      : productDtoWithoutVariants.category_id
+        ? [productDtoWithoutVariants.category_id]
+        : [];
+
+    // Set primary category_id to first in list for backward compat
+    productDtoWithoutVariants.category_id = resolvedCategoryIds[0] ?? null;
 
     // Check for duplicate SKU
     const skuQuery = this.supabaseService
@@ -191,11 +227,14 @@ export class ProductsService {
       .from('products')
       .insert(productDtoWithoutVariants)
       .select(
-        '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+        '*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
       )
       .single();
 
     if (productError) throw productError;
+
+    // Sync categories into junction table
+    await this.syncProductCategories(product.id, resolvedCategoryIds);
 
     if (variants && variants.length > 0) {
       const variantsWithProductId = variants.map((v: any) => ({
@@ -237,6 +276,17 @@ export class ProductsService {
     const search = params?.search?.trim();
     const categoryId = params?.categoryId;
     const brandId = params?.brandId;
+
+    // Pre-fetch product IDs for category filter via junction table
+    let categoryProductIds: string[] | null = null;
+    if (categoryId && categoryId !== 'all' && categoryId !== 'uncategorized' && categoryId !== 'package') {
+      const { data: catLinks } = await this.supabaseService
+        .getAdminClient()
+        .from('product_categories')
+        .select('product_id')
+        .eq('category_id', categoryId);
+      categoryProductIds = catLinks?.map((l) => l.product_id) ?? [];
+    }
 
     const finalProducts: any[] = [];
 
@@ -299,8 +349,12 @@ export class ProductsService {
     }
     if (categoryId === 'uncategorized') {
       productCountQuery = productCountQuery.is('category_id', null);
-    } else if (categoryId && categoryId !== 'all') {
-      productCountQuery = productCountQuery.eq('category_id', categoryId);
+    } else if (categoryProductIds !== null) {
+      if (categoryProductIds.length === 0) {
+        productCountQuery = productCountQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+      } else {
+        productCountQuery = productCountQuery.in('id', categoryProductIds);
+      }
     }
 
     // 2. Fetch Package Count — skip when filtering by brand or category (packages have neither)
@@ -352,7 +406,7 @@ export class ProductsService {
         .getAdminClient()
         .from('products')
         .select(
-          '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+          '*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
         );
 
       if (search) {
@@ -365,8 +419,12 @@ export class ProductsService {
       }
       if (categoryId === 'uncategorized') {
         productDataQuery = productDataQuery.is('category_id', null);
-      } else if (categoryId && categoryId !== 'all') {
-        productDataQuery = productDataQuery.eq('category_id', categoryId);
+      } else if (categoryProductIds !== null) {
+        if (categoryProductIds.length === 0) {
+          productDataQuery = productDataQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+        } else {
+          productDataQuery = productDataQuery.in('id', categoryProductIds);
+        }
       }
 
       const { data: products, error: pError } = await productDataQuery
@@ -446,7 +504,9 @@ export class ProductsService {
     );
     const nonPackageProducts = result.data.filter((p) => !p.is_package);
 
-    const uncategorized = nonPackageProducts.filter((p) => !p.category_id);
+    const uncategorized = nonPackageProducts.filter(
+      (p) => !p.categories || p.categories.length === 0,
+    );
     if (uncategorized.length > 0)
       grouped.push({
         category: { id: 'uncategorized', name: 'Uncategorized' },
@@ -454,8 +514,8 @@ export class ProductsService {
       });
 
     for (const cat of categories || []) {
-      const catProducts = nonPackageProducts.filter(
-        (p) => p.category_id === cat.id,
+      const catProducts = nonPackageProducts.filter((p) =>
+        p.categories?.some((c: any) => c.id === cat.id),
       );
       if (catProducts.length > 0)
         grouped.push({ category: cat, products: catProducts });
@@ -476,7 +536,7 @@ export class ProductsService {
       .getAdminClient()
       .from('products')
       .select(
-        '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+        '*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
       )
       .eq('id', id)
       .single();
@@ -515,7 +575,18 @@ export class ProductsService {
     if (updateData.brand_id === '') updateData.brand_id = null;
     if (updateData.uom_id === '') updateData.uom_id = null;
 
-    const { variants, ...updateDtoWithoutVariants } = updateData;
+    const { variants, category_ids, ...updateDtoWithoutVariants } = updateData;
+
+    // Resolve category_ids and sync junction table
+    let resolvedCategoryIds: string[] | null = null;
+    if (category_ids !== undefined) {
+      resolvedCategoryIds = Array.isArray(category_ids) ? category_ids : [];
+      updateDtoWithoutVariants.category_id = resolvedCategoryIds[0] ?? null;
+    } else if (updateDtoWithoutVariants.category_id !== undefined) {
+      resolvedCategoryIds = updateDtoWithoutVariants.category_id
+        ? [updateDtoWithoutVariants.category_id]
+        : [];
+    }
 
     let updateQuery = this.supabaseService
       .getAdminClient()
@@ -526,7 +597,7 @@ export class ProductsService {
 
     const { data: product, error: productError } = await updateQuery
       .select(
-        '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining), variants:product_variants(*)',
+        '*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining), variants:product_variants(*)',
       )
       .single();
 
@@ -534,6 +605,11 @@ export class ProductsService {
       throw new InternalServerErrorException(
         `Failed to update product: ${productError.message}`,
       );
+    }
+
+    // Sync categories into junction table if category_ids were provided
+    if (resolvedCategoryIds !== null) {
+      await this.syncProductCategories(id, resolvedCategoryIds);
     }
 
     if (variants) {
@@ -591,11 +667,15 @@ export class ProductsService {
       throw new BadRequestException('productIds must not be empty');
     }
 
+    const categoryIds = dto.categoryIds ?? [];
+    const primaryCategoryId = categoryIds[0] ?? null;
+
+    // Update primary category_id on products for backward compat
     const { data, error } = await this.supabaseService
       .getAdminClient()
       .from('products')
       .update({
-        category_id: dto.categoryId ?? null,
+        category_id: primaryCategoryId,
         updated_at: new Date().toISOString(),
       })
       .in('id', dto.productIds)
@@ -606,6 +686,13 @@ export class ProductsService {
         `Failed to batch update category: ${error.message}`,
       );
     }
+
+    // Sync junction table for each product
+    await Promise.all(
+      dto.productIds.map((productId) =>
+        this.syncProductCategories(productId, categoryIds),
+      ),
+    );
 
     return {
       message: 'Category updated successfully',

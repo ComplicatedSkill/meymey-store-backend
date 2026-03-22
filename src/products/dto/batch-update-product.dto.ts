@@ -15,5 +15,7 @@ export class BatchUpdateCategoryDto {
   productIds: string[];
 
   @IsOptional()
-  categoryId: string | null;
+  @IsArray()
+  @IsString({ each: true })
+  categoryIds: string[] | null;
 }
