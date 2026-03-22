@@ -629,10 +629,9 @@ export class ProductsService {
           .insert(variantsWithProductId);
         if (variantsError) throw variantsError;
       }
-      return this.findOne(id);
     }
 
-    return this.mapProduct(product);
+    return this.findOne(id);
   }
 
   async batchUpdateBrand(dto: BatchUpdateBrandDto) {
