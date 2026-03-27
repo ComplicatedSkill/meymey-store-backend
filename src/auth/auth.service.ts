@@ -131,9 +131,9 @@ export class AuthService {
       throw new UnauthorizedException(error.message);
     }
 
-    // Fetch the user's store
+    // Fetch the user's store — use admin client to bypass RLS
     const { data: storeData } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('stores')
       .select('*')
       .eq('user_id', data.user.id)

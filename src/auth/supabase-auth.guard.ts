@@ -33,9 +33,9 @@ export class SupabaseAuthGuard implements CanActivate {
 
       const requestedStoreId = request.headers['x-store-id'];
 
-      // Fetch store profile
+      // Fetch store profile — use admin client to bypass RLS
       let storeQuery = this.supabaseService
-        .getClient()
+        .getAdminClient()
         .from('stores')
         .select('*')
         .eq('user_id', data.user.id);

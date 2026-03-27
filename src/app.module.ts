@@ -29,6 +29,9 @@ import { BrandsModule } from './brands/brands.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ProductPackagesModule } from './product-packages/product-packages.module';
+import { IncomeModule } from './income/income.module';
+import { ExpensesModule } from './expenses/expenses.module';
+import { AssetsModule } from './assets/assets.module';
 
 @Module({
   imports: [
@@ -60,6 +63,9 @@ import { ProductPackagesModule } from './product-packages/product-packages.modul
     WebhooksModule,
     PaymentsModule,
     ProductPackagesModule,
+    IncomeModule,
+    ExpensesModule,
+    AssetsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

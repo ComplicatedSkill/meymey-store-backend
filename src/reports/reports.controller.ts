@@ -59,4 +59,32 @@ export class ReportsController {
   getProductSuppliersReport() {
     return this.reportsService.getProductSuppliersReport();
   }
+
+  @Get('yearly-profit-loss')
+  getYearlyProfitLoss(
+    @Request() req: any,
+    @Query('year') year?: string,
+  ) {
+    const storeId = req.user?.store?.id;
+    const now = new Date();
+    return this.reportsService.getYearlyProfitLoss(
+      storeId,
+      Number(year) || now.getFullYear(),
+    );
+  }
+
+  @Get('profit-loss')
+  getMonthlyProfitLoss(
+    @Request() req: any,
+    @Query('year') year?: string,
+    @Query('month') month?: string,
+  ) {
+    const storeId = req.user?.store?.id;
+    const now = new Date();
+    return this.reportsService.getMonthlyProfitLoss(
+      storeId,
+      Number(year) || now.getFullYear(),
+      Number(month) || now.getMonth() + 1,
+    );
+  }
 }
