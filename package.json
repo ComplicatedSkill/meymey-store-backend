@@ -9,7 +9,7 @@
   "node": ">=20"
 },
   "scripts": {
-    "build": "npm install && nest build",
+  "build": "nest build",
     "start": "node dist/main.js",
     "start:prod": "node dist/main.js",
     "start:dev": "nest start --watch",
