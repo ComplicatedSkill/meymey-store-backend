@@ -1,0 +1,7 @@
+export declare class CreateNotificationDto {
+    type: 'low_stock' | 'order_status' | 'payment_received' | 'system' | 'new_order';
+    title: string;
+    message?: string;
+    data?: Record<string, any>;
+    user_id?: string;
+}
