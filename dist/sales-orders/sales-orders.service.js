@@ -14,11 +14,17 @@ const common_1 = require("@nestjs/common");
 const supabase_service_1 = require("../supabase/supabase.service");
 const notifications_service_1 = require("../notifications/notifications.service");
 const product_packages_service_1 = require("../product-packages/product-packages.service");
+const product_uom_conversions_service_1 = require("../product-uom-conversions/product-uom-conversions.service");
 let SalesOrdersService = class SalesOrdersService {
-    constructor(supabaseService, notificationsService, productPackagesService) {
+    supabaseService;
+    notificationsService;
+    productPackagesService;
+    uomConversionsService;
+    constructor(supabaseService, notificationsService, productPackagesService, uomConversionsService) {
         this.supabaseService = supabaseService;
         this.notificationsService = notificationsService;
         this.productPackagesService = productPackagesService;
+        this.uomConversionsService = uomConversionsService;
     }
     generateOrderNumber() {
         const timestamp = Date.now().toString(36).toUpperCase();
@@ -45,7 +51,8 @@ let SalesOrdersService = class SalesOrdersService {
                     await this.checkPackageStockAvailability(item.package_id, item.quantity);
                 }
                 else {
-                    await this.checkStockAvailability(item.product_id, item.variant_id ?? null, item.quantity);
+                    const factor = await this.uomConversionsService.getConversionFactor(item.product_id, item.sale_uom_id ?? null);
+                    await this.checkStockAvailability(item.product_id, item.variant_id ?? null, item.quantity * factor);
                 }
             }
         }
@@ -77,6 +84,7 @@ let SalesOrdersService = class SalesOrdersService {
             unit_price: item.unit_price,
             discount: item.discount || 0,
             total: this.calculateItemTotal(item),
+            sale_uom_id: item.sale_uom_id || null,
         }));
         const { error: itemsError } = await this.supabaseService
             .getAdminClient()
@@ -133,7 +141,8 @@ let SalesOrdersService = class SalesOrdersService {
                         await this.checkPackageStockAvailability(item.package_id, item.quantity);
                     }
                     else {
-                        await this.checkStockAvailability(item.product_id, item.variant_id ?? null, item.quantity);
+                        const factor = await this.uomConversionsService.getConversionFactor(item.product_id, item.sale_uom_id ?? null);
+                        await this.checkStockAvailability(item.product_id, item.variant_id ?? null, item.quantity * factor);
                     }
                 }
             }
@@ -153,6 +162,7 @@ let SalesOrdersService = class SalesOrdersService {
                 unit_price: item.unit_price,
                 discount: item.discount || 0,
                 total: this.calculateItemTotal(item),
+                sale_uom_id: item.sale_uom_id || null,
             }));
             const { error: itemsError } = await this.supabaseService
                 .getAdminClient()
@@ -274,7 +284,8 @@ let SalesOrdersService = class SalesOrdersService {
                 }
             }
             else {
-                await this.allocateFIFO(item.id, item.product_id, item.variant_id ?? null, item.quantity, item.sales_order.order_number);
+                const factor = await this.uomConversionsService.getConversionFactor(item.product_id, item.sale_uom_id ?? null);
+                await this.allocateFIFO(item.id, item.product_id, item.variant_id ?? null, item.quantity * factor, item.sales_order.order_number);
             }
         }
         const stockMovements = [];
@@ -293,13 +304,14 @@ let SalesOrdersService = class SalesOrdersService {
                 }
             }
             else {
+                const factor = await this.uomConversionsService.getConversionFactor(item.product_id, item.sale_uom_id ?? null);
                 stockMovements.push({
                     product_id: item.product_id,
                     variant_id: item.variant_id,
-                    quantity: item.quantity,
+                    quantity: item.quantity * factor,
                     type: 'out',
                     reference: `Sales Order: ${item.sales_order.order_number}`,
-                    notes: `Stock deducted for sales order (FIFO)`,
+                    notes: `Stock deducted for sales order (FIFO)${factor > 1 ? ` (${item.quantity} × ${factor} base units)` : ''}`,
                 });
             }
         }
@@ -396,6 +408,7 @@ exports.SalesOrdersService = SalesOrdersService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [supabase_service_1.SupabaseService,
         notifications_service_1.NotificationsService,
-        product_packages_service_1.ProductPackagesService])
+        product_packages_service_1.ProductPackagesService,
+        product_uom_conversions_service_1.ProductUomConversionsService])
 ], SalesOrdersService);
 //# sourceMappingURL=sales-orders.service.js.map

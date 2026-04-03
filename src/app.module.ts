@@ -29,6 +29,7 @@ import { BrandsModule } from './brands/brands.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ProductPackagesModule } from './product-packages/product-packages.module';
+import { ProductUomConversionsModule } from './product-uom-conversions/product-uom-conversions.module';
 import { IncomeModule } from './income/income.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { AssetsModule } from './assets/assets.module';
@@ -63,6 +64,7 @@ import { AssetsModule } from './assets/assets.module';
     WebhooksModule,
     PaymentsModule,
     ProductPackagesModule,
+    ProductUomConversionsModule,
     IncomeModule,
     ExpensesModule,
     AssetsModule,

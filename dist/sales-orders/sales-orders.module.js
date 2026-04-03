@@ -13,12 +13,13 @@ const sales_orders_controller_1 = require("./sales-orders.controller");
 const supabase_module_1 = require("../supabase/supabase.module");
 const notifications_module_1 = require("../notifications/notifications.module");
 const product_packages_module_1 = require("../product-packages/product-packages.module");
+const product_uom_conversions_module_1 = require("../product-uom-conversions/product-uom-conversions.module");
 let SalesOrdersModule = class SalesOrdersModule {
 };
 exports.SalesOrdersModule = SalesOrdersModule;
 exports.SalesOrdersModule = SalesOrdersModule = __decorate([
     (0, common_1.Module)({
-        imports: [supabase_module_1.SupabaseModule, notifications_module_1.NotificationsModule, product_packages_module_1.ProductPackagesModule],
+        imports: [supabase_module_1.SupabaseModule, notifications_module_1.NotificationsModule, product_packages_module_1.ProductPackagesModule, product_uom_conversions_module_1.ProductUomConversionsModule],
         controllers: [sales_orders_controller_1.SalesOrdersController],
         providers: [sales_orders_service_1.SalesOrdersService],
         exports: [sales_orders_service_1.SalesOrdersService],

@@ -90,11 +90,27 @@ export class ProductsService {
       .map((pc: any) => pc.category)
       .filter(Boolean);
 
+    // Compute stock level in each configured UOM so the frontend doesn't have to divide.
+    // stock_level is always in base units; each UOM entry shows floor(stock / factor).
+    const uomConversions = product.uom_conversions || [];
+    const stockByUom = uomConversions.map((conv: any) => ({
+      uom_id: conv.uom_id,
+      uom: conv.uom,
+      conversion_factor: conv.conversion_factor,
+      price: conv.price,
+      is_base_uom: conv.is_base_uom,
+      is_purchase_uom: conv.is_purchase_uom,
+      stock_level: conv.is_base_uom
+        ? totalStock
+        : Math.floor(totalStock / conv.conversion_factor),
+    }));
+
     return {
       ...product,
       categories: categories.length > 0 ? categories : product.category ? [product.category] : [],
       all_categories: undefined,
-      stock_level: totalStock,
+      stock_level: totalStock,       // always in base units
+      stock_by_uom: stockByUom,      // stock expressed in each configured UOM
       variants: variantsWithStock,
       stock: undefined,
     };
@@ -173,7 +189,7 @@ export class ProductsService {
         .getAdminClient()
         .from('products')
         .select(
-          '*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+          '*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), uom_conversions:product_uom_conversions(*, uom:uom(*)), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
         )
         .eq('category_id', currentProduct.category_id)
         .neq('id', currentProduct.id)
@@ -194,7 +210,7 @@ export class ProductsService {
       .getAdminClient()
       .from('products')
       .select(
-        '*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+        '*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), uom_conversions:product_uom_conversions(*, uom:uom(*)), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
       )
       .eq('brand_id', currentProduct.brand_id)
       .neq('id', currentProduct.id)
@@ -217,7 +233,7 @@ export class ProductsService {
       .getAdminClient()
       .from('products')
       .select(
-        '*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+        '*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), uom_conversions:product_uom_conversions(*, uom:uom(*)), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
       )
       .neq('id', currentProduct.id)
       .limit(limit * 2); // Fetch more to filter out usedIds and sort
@@ -280,7 +296,7 @@ export class ProductsService {
       .from('products')
       .insert(productDtoWithoutVariants)
       .select(
-        '*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+        '*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), uom_conversions:product_uom_conversions(*, uom:uom(*)), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
       )
       .single();
 
@@ -480,7 +496,7 @@ export class ProductsService {
         .getAdminClient()
         .from('products')
         .select(
-          '*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+          '*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), uom_conversions:product_uom_conversions(*, uom:uom(*)), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
         );
 
       if (search) {
@@ -613,7 +629,7 @@ export class ProductsService {
       .getAdminClient()
       .from('products')
       .select(
-        '*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+        '*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), uom_conversions:product_uom_conversions(*, uom:uom(*)), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
       )
       .eq('id', id)
       .single();

@@ -13,6 +13,11 @@ exports.CreatePurchaseOrderDto = exports.PurchaseOrderItemDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 class PurchaseOrderItemDto {
+    product_id;
+    variant_id;
+    quantity;
+    unit_price;
+    purchase_uom_id;
 }
 exports.PurchaseOrderItemDto = PurchaseOrderItemDto;
 __decorate([
@@ -34,10 +39,21 @@ __decorate([
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], PurchaseOrderItemDto.prototype, "unit_price", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], PurchaseOrderItemDto.prototype, "purchase_uom_id", void 0);
 class CreatePurchaseOrderDto {
-    constructor() {
-        this.status = 'pending';
-    }
+    order_number;
+    supplier_id;
+    supplier_name;
+    status = 'pending';
+    total_amount;
+    order_date;
+    expected_date;
+    notes;
+    items;
 }
 exports.CreatePurchaseOrderDto = CreatePurchaseOrderDto;
 __decorate([

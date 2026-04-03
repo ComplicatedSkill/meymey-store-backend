@@ -13,10 +13,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PurchaseOrdersService = void 0;
 const common_1 = require("@nestjs/common");
 const supabase_service_1 = require("../supabase/supabase.service");
+const product_uom_conversions_service_1 = require("../product-uom-conversions/product-uom-conversions.service");
 let PurchaseOrdersService = PurchaseOrdersService_1 = class PurchaseOrdersService {
-    constructor(supabaseService) {
+    supabaseService;
+    uomConversionsService;
+    logger = new common_1.Logger(PurchaseOrdersService_1.name);
+    constructor(supabaseService, uomConversionsService) {
         this.supabaseService = supabaseService;
-        this.logger = new common_1.Logger(PurchaseOrdersService_1.name);
+        this.uomConversionsService = uomConversionsService;
     }
     async create(createDto) {
         const { items, ...orderData } = createDto;
@@ -105,30 +109,37 @@ let PurchaseOrdersService = PurchaseOrdersService_1 = class PurchaseOrdersServic
         const order = await this.findOne(orderId);
         if (!order.items || order.items.length === 0)
             return;
-        const stockBatches = order.items.map((item) => ({
-            product_id: item.product_id,
-            variant_id: item.variant_id,
-            batch_number: `PO-${order.order_number}-${Date.now().toString(36).toUpperCase()}`,
-            quantity_received: item.quantity,
-            quantity_remaining: item.quantity,
-            unit_cost: item.unit_price,
-            purchase_order_id: orderId,
-            received_date: new Date().toISOString().split('T')[0],
-        }));
+        const stockBatches = [];
+        const stockMovements = [];
+        for (const item of order.items) {
+            const factor = await this.uomConversionsService.getConversionFactor(item.product_id, item.purchase_uom_id ?? null);
+            const baseQty = item.quantity * factor;
+            const baseUnitCost = factor > 1 ? item.unit_price / factor : item.unit_price;
+            stockBatches.push({
+                product_id: item.product_id,
+                variant_id: item.variant_id,
+                batch_number: `PO-${order.order_number}-${Date.now().toString(36).toUpperCase()}`,
+                quantity_received: baseQty,
+                quantity_remaining: baseQty,
+                unit_cost: baseUnitCost,
+                purchase_order_id: orderId,
+                received_date: new Date().toISOString().split('T')[0],
+            });
+            stockMovements.push({
+                product_id: item.product_id,
+                variant_id: item.variant_id,
+                quantity: baseQty,
+                type: 'in',
+                reference: `Purchase Order: ${order.order_number}`,
+                notes: `Stock received from purchase order${factor > 1 ? ` (${item.quantity} × ${factor} base units)` : ''}`,
+            });
+        }
         const { error: batchError } = await this.supabaseService
             .getAdminClient()
             .from('stock_batches')
             .insert(stockBatches);
         if (batchError)
             throw batchError;
-        const stockMovements = order.items.map((item) => ({
-            product_id: item.product_id,
-            variant_id: item.variant_id,
-            quantity: item.quantity,
-            type: 'in',
-            reference: `Purchase Order: ${order.order_number}`,
-            notes: `Stock received from purchase order`,
-        }));
         await this.supabaseService
             .getAdminClient()
             .from('stock_movements')
@@ -155,6 +166,7 @@ let PurchaseOrdersService = PurchaseOrdersService_1 = class PurchaseOrdersServic
 exports.PurchaseOrdersService = PurchaseOrdersService;
 exports.PurchaseOrdersService = PurchaseOrdersService = PurchaseOrdersService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [supabase_service_1.SupabaseService])
+    __metadata("design:paramtypes", [supabase_service_1.SupabaseService,
+        product_uom_conversions_service_1.ProductUomConversionsService])
 ], PurchaseOrdersService);
 //# sourceMappingURL=purchase-orders.service.js.map

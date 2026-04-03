@@ -24,6 +24,12 @@ export class PurchaseOrderItemDto {
   @IsNumber()
   @Min(0)
   unit_price: number;
+
+  // Optional: the UOM the purchase is made in (e.g. box).
+  // If provided, quantity will be converted to base units on receive.
+  @IsOptional()
+  @IsString()
+  purchase_uom_id?: string;
 }
 
 export class CreatePurchaseOrderDto {

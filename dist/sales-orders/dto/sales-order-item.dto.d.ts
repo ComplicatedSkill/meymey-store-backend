@@ -5,4 +5,5 @@ export declare class SalesOrderItemDto {
     quantity: number;
     unit_price: number;
     discount?: number;
+    sale_uom_id?: string;
 }

@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { ProductUomConversionsService } from '../product-uom-conversions/product-uom-conversions.service';
 import { CreatePurchaseOrderDto } from './dto/create-purchase-order.dto';
 import { UpdatePurchaseOrderDto } from './dto/update-purchase-order.dto';
 
@@ -13,7 +14,10 @@ import { UpdatePurchaseOrderDto } from './dto/update-purchase-order.dto';
 export class PurchaseOrdersService {
   private readonly logger = new Logger(PurchaseOrdersService.name);
 
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(
+    private supabaseService: SupabaseService,
+    private uomConversionsService: ProductUomConversionsService,
+  ) {}
 
   async create(createDto: CreatePurchaseOrderDto) {
     const { items, ...orderData } = createDto;
@@ -115,16 +119,39 @@ export class PurchaseOrdersService {
     const order = await this.findOne(orderId);
     if (!order.items || order.items.length === 0) return;
 
-    const stockBatches = order.items.map((item: any) => ({
-      product_id: item.product_id,
-      variant_id: item.variant_id,
-      batch_number: `PO-${order.order_number}-${Date.now().toString(36).toUpperCase()}`,
-      quantity_received: item.quantity,
-      quantity_remaining: item.quantity,
-      unit_cost: item.unit_price,
-      purchase_order_id: orderId,
-      received_date: new Date().toISOString().split('T')[0],
-    }));
+    const stockBatches: any[] = [];
+    const stockMovements: any[] = [];
+
+    for (const item of order.items) {
+      // Convert purchased quantity to base units
+      const factor = await this.uomConversionsService.getConversionFactor(
+        item.product_id,
+        item.purchase_uom_id ?? null,
+      );
+      const baseQty = item.quantity * factor;
+      // unit_cost in base units = unit_price / factor
+      const baseUnitCost = factor > 1 ? item.unit_price / factor : item.unit_price;
+
+      stockBatches.push({
+        product_id: item.product_id,
+        variant_id: item.variant_id,
+        batch_number: `PO-${order.order_number}-${Date.now().toString(36).toUpperCase()}`,
+        quantity_received: baseQty,
+        quantity_remaining: baseQty,
+        unit_cost: baseUnitCost,
+        purchase_order_id: orderId,
+        received_date: new Date().toISOString().split('T')[0],
+      });
+
+      stockMovements.push({
+        product_id: item.product_id,
+        variant_id: item.variant_id,
+        quantity: baseQty,
+        type: 'in',
+        reference: `Purchase Order: ${order.order_number}`,
+        notes: `Stock received from purchase order${factor > 1 ? ` (${item.quantity} × ${factor} base units)` : ''}`,
+      });
+    }
 
     const { error: batchError } = await this.supabaseService
       .getAdminClient()
@@ -132,14 +159,6 @@ export class PurchaseOrdersService {
       .insert(stockBatches);
     if (batchError) throw batchError;
 
-    const stockMovements = order.items.map((item: any) => ({
-      product_id: item.product_id,
-      variant_id: item.variant_id,
-      quantity: item.quantity,
-      type: 'in',
-      reference: `Purchase Order: ${order.order_number}`,
-      notes: `Stock received from purchase order`,
-    }));
     await this.supabaseService
       .getAdminClient()
       .from('stock_movements')

@@ -38,6 +38,7 @@ const brands_module_1 = require("./brands/brands.module");
 const webhooks_module_1 = require("./webhooks/webhooks.module");
 const payments_module_1 = require("./payments/payments.module");
 const product_packages_module_1 = require("./product-packages/product-packages.module");
+const product_uom_conversions_module_1 = require("./product-uom-conversions/product-uom-conversions.module");
 const income_module_1 = require("./income/income.module");
 const expenses_module_1 = require("./expenses/expenses.module");
 const assets_module_1 = require("./assets/assets.module");
@@ -75,6 +76,7 @@ exports.AppModule = AppModule = __decorate([
             webhooks_module_1.WebhooksModule,
             payments_module_1.PaymentsModule,
             product_packages_module_1.ProductPackagesModule,
+            product_uom_conversions_module_1.ProductUomConversionsModule,
             income_module_1.IncomeModule,
             expenses_module_1.ExpensesModule,
             assets_module_1.AssetsModule,

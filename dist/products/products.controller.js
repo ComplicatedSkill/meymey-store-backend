@@ -20,6 +20,7 @@ const update_product_dto_1 = require("./dto/update-product.dto");
 const batch_update_product_dto_1 = require("./dto/batch-update-product.dto");
 const supabase_auth_guard_1 = require("../auth/supabase-auth.guard");
 let ProductsController = class ProductsController {
+    productsService;
     constructor(productsService) {
         this.productsService = productsService;
     }

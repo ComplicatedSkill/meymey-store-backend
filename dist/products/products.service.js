@@ -13,6 +13,7 @@ exports.ProductsService = void 0;
 const common_1 = require("@nestjs/common");
 const supabase_service_1 = require("../supabase/supabase.service");
 let ProductsService = class ProductsService {
+    supabaseService;
     constructor(supabaseService) {
         this.supabaseService = supabaseService;
     }
@@ -58,11 +59,24 @@ let ProductsService = class ProductsService {
         const categories = (product.all_categories || [])
             .map((pc) => pc.category)
             .filter(Boolean);
+        const uomConversions = product.uom_conversions || [];
+        const stockByUom = uomConversions.map((conv) => ({
+            uom_id: conv.uom_id,
+            uom: conv.uom,
+            conversion_factor: conv.conversion_factor,
+            price: conv.price,
+            is_base_uom: conv.is_base_uom,
+            is_purchase_uom: conv.is_purchase_uom,
+            stock_level: conv.is_base_uom
+                ? totalStock
+                : Math.floor(totalStock / conv.conversion_factor),
+        }));
         return {
             ...product,
             categories: categories.length > 0 ? categories : product.category ? [product.category] : [],
             all_categories: undefined,
             stock_level: totalStock,
+            stock_by_uom: stockByUom,
             variants: variantsWithStock,
             stock: undefined,
         };
@@ -126,7 +140,7 @@ let ProductsService = class ProductsService {
             const { data: catProducts } = await this.supabaseService
                 .getAdminClient()
                 .from('products')
-                .select('*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)')
+                .select('*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), uom_conversions:product_uom_conversions(*, uom:uom(*)), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)')
                 .eq('category_id', currentProduct.category_id)
                 .neq('id', currentProduct.id)
                 .limit(limit);
@@ -142,7 +156,7 @@ let ProductsService = class ProductsService {
         const { data: brandProducts } = await this.supabaseService
             .getAdminClient()
             .from('products')
-            .select('*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)')
+            .select('*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), uom_conversions:product_uom_conversions(*, uom:uom(*)), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)')
             .eq('brand_id', currentProduct.brand_id)
             .neq('id', currentProduct.id)
             .limit(limit - recommendations.length);
@@ -157,7 +171,7 @@ let ProductsService = class ProductsService {
         const { data: topStockProducts } = await this.supabaseService
             .getAdminClient()
             .from('products')
-            .select('*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)')
+            .select('*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), uom_conversions:product_uom_conversions(*, uom:uom(*)), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)')
             .neq('id', currentProduct.id)
             .limit(limit * 2);
         if (topStockProducts) {
@@ -204,7 +218,7 @@ let ProductsService = class ProductsService {
             .getAdminClient()
             .from('products')
             .insert(productDtoWithoutVariants)
-            .select('*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)')
+            .select('*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), uom_conversions:product_uom_conversions(*, uom:uom(*)), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)')
             .single();
         if (productError)
             throw productError;
@@ -350,7 +364,7 @@ let ProductsService = class ProductsService {
             let productDataQuery = this.supabaseService
                 .getAdminClient()
                 .from('products')
-                .select('*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)');
+                .select('*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), uom_conversions:product_uom_conversions(*, uom:uom(*)), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)');
             if (search) {
                 productDataQuery = this.applySearchFilters(productDataQuery, search);
             }
@@ -445,7 +459,7 @@ let ProductsService = class ProductsService {
         const { data, error } = await this.supabaseService
             .getAdminClient()
             .from('products')
-            .select('*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)')
+            .select('*, category:categories!products_category_id_fkey(*), all_categories:product_categories(category:categories!product_categories_category_id_fkey(*)), brand:brands(*), uom:uom(*), uom_conversions:product_uom_conversions(*, uom:uom(*)), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)')
             .eq('id', id)
             .single();
         if (error)

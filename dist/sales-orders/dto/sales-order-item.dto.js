@@ -12,6 +12,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SalesOrderItemDto = void 0;
 const class_validator_1 = require("class-validator");
 class SalesOrderItemDto {
+    product_id;
+    package_id;
+    variant_id;
+    quantity;
+    unit_price;
+    discount;
+    sale_uom_id;
 }
 exports.SalesOrderItemDto = SalesOrderItemDto;
 __decorate([
@@ -45,4 +52,9 @@ __decorate([
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], SalesOrderItemDto.prototype, "discount", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], SalesOrderItemDto.prototype, "sale_uom_id", void 0);
 //# sourceMappingURL=sales-order-item.dto.js.map

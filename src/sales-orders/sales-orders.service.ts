@@ -9,6 +9,7 @@ import { CreateSalesOrderDto } from './dto/create-sales-order.dto';
 import { UpdateSalesOrderDto } from './dto/update-sales-order.dto';
 import { SalesOrderItemDto } from './dto/sales-order-item.dto';
 import { ProductPackagesService } from '../product-packages/product-packages.service';
+import { ProductUomConversionsService } from '../product-uom-conversions/product-uom-conversions.service';
 
 @Injectable()
 export class SalesOrdersService {
@@ -16,6 +17,7 @@ export class SalesOrdersService {
     private supabaseService: SupabaseService,
     private notificationsService: NotificationsService,
     private productPackagesService: ProductPackagesService,
+    private uomConversionsService: ProductUomConversionsService,
   ) {}
 
   private generateOrderNumber(): string {
@@ -58,10 +60,14 @@ export class SalesOrdersService {
             item.quantity,
           );
         } else {
+          const factor = await this.uomConversionsService.getConversionFactor(
+            item.product_id!,
+            item.sale_uom_id ?? null,
+          );
           await this.checkStockAvailability(
             item.product_id!,
             item.variant_id ?? null,
-            item.quantity,
+            item.quantity * factor,
           );
         }
       }
@@ -100,6 +106,7 @@ export class SalesOrdersService {
       unit_price: item.unit_price,
       discount: item.discount || 0,
       total: this.calculateItemTotal(item),
+      sale_uom_id: item.sale_uom_id || null,
     }));
     const { error: itemsError } = await this.supabaseService
       .getAdminClient()
@@ -183,10 +190,14 @@ export class SalesOrdersService {
               item.quantity,
             );
           } else {
+            const factor = await this.uomConversionsService.getConversionFactor(
+              item.product_id!,
+              item.sale_uom_id ?? null,
+            );
             await this.checkStockAvailability(
               item.product_id!,
               item.variant_id ?? null,
-              item.quantity,
+              item.quantity * factor,
             );
           }
         }
@@ -215,6 +226,7 @@ export class SalesOrdersService {
         unit_price: item.unit_price,
         discount: item.discount || 0,
         total: this.calculateItemTotal(item),
+        sale_uom_id: item.sale_uom_id || null,
       }));
       const { error: itemsError } = await this.supabaseService
         .getAdminClient()
@@ -368,17 +380,21 @@ export class SalesOrdersService {
           await this.allocateFIFO(
             item.id,
             pItem.product_id,
-            null, // allocate from any batch (same logic as stock check)
+            null,
             pItem.quantity * item.quantity,
             item.sales_order.order_number,
           );
         }
       } else {
+        const factor = await this.uomConversionsService.getConversionFactor(
+          item.product_id,
+          item.sale_uom_id ?? null,
+        );
         await this.allocateFIFO(
           item.id,
           item.product_id,
           item.variant_id ?? null,
-          item.quantity,
+          item.quantity * factor,
           item.sales_order.order_number,
         );
       }
@@ -401,13 +417,17 @@ export class SalesOrdersService {
           });
         }
       } else {
+        const factor = await this.uomConversionsService.getConversionFactor(
+          item.product_id,
+          item.sale_uom_id ?? null,
+        );
         stockMovements.push({
           product_id: item.product_id,
           variant_id: item.variant_id,
-          quantity: item.quantity,
+          quantity: item.quantity * factor,
           type: 'out',
           reference: `Sales Order: ${item.sales_order.order_number}`,
-          notes: `Stock deducted for sales order (FIFO)`,
+          notes: `Stock deducted for sales order (FIFO)${factor > 1 ? ` (${item.quantity} × ${factor} base units)` : ''}`,
         });
       }
     }

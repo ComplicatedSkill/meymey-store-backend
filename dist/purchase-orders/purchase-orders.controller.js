@@ -19,6 +19,7 @@ const create_purchase_order_dto_1 = require("./dto/create-purchase-order.dto");
 const update_purchase_order_dto_1 = require("./dto/update-purchase-order.dto");
 const supabase_auth_guard_1 = require("../auth/supabase-auth.guard");
 let PurchaseOrdersController = class PurchaseOrdersController {
+    service;
     constructor(service) {
         this.service = service;
     }
