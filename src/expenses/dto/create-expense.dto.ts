@@ -3,6 +3,7 @@ import {
   IsNumber,
   IsOptional,
   IsDateString,
+  IsIn,
   Min,
 } from 'class-validator';
 
@@ -24,4 +25,8 @@ export class CreateExpenseDto {
 
   @IsDateString()
   date: string;
+
+  @IsOptional()
+  @IsIn(['one-time', 'monthly'])
+  type?: 'one-time' | 'monthly';
 }

@@ -4,16 +4,17 @@ import { CreateProductUomConversionDto } from './dto/create-product-uom-conversi
 import { UpdateProductUomConversionDto } from './dto/update-product-uom-conversion.dto';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 
-@UseGuards(SupabaseAuthGuard)
 @Controller('products/:productId/uom-conversions')
 export class ProductUomConversionsController {
   constructor(private readonly service: ProductUomConversionsService) {}
 
+  // Public — frontend reads this without auth to display UOM options
   @Get()
   findAll(@Param('productId') productId: string) {
     return this.service.findByProduct(productId);
   }
 
+  @UseGuards(SupabaseAuthGuard)
   @Post()
   create(
     @Param('productId') productId: string,
@@ -22,6 +23,7 @@ export class ProductUomConversionsController {
     return this.service.create(productId, dto);
   }
 
+  @UseGuards(SupabaseAuthGuard)
   @Patch(':id')
   update(
     @Param('productId') productId: string,
@@ -31,6 +33,7 @@ export class ProductUomConversionsController {
     return this.service.update(id, productId, dto);
   }
 
+  @UseGuards(SupabaseAuthGuard)
   @Delete(':id')
   remove(
     @Param('productId') productId: string,

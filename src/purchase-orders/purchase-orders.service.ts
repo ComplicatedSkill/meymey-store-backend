@@ -54,7 +54,7 @@ export class PurchaseOrdersService {
       .getAdminClient()
       .from('purchase_orders')
       .select(
-        '*, supplier:suppliers(*), items:purchase_inventory(*, product:products(*), variant:product_variants(*))',
+        '*, supplier:suppliers(*), items:purchase_inventory(*, product:products(id, name, sku, price, cost, image_url, category_id), variant:product_variants(*))',
       )
       .order('created_at', { ascending: false });
     if (error) throw error;
@@ -66,7 +66,7 @@ export class PurchaseOrdersService {
       .getAdminClient()
       .from('purchase_orders')
       .select(
-        '*, supplier:suppliers(*), items:purchase_inventory(*, product:products(*), variant:product_variants(*))',
+        '*, supplier:suppliers(*), items:purchase_inventory(*, product:products(id, name, sku, price, cost, image_url, category_id), variant:product_variants(*))',
       )
       .eq('id', id)
       .single();
@@ -76,16 +76,73 @@ export class PurchaseOrdersService {
   }
 
   async update(id: string, updateDto: UpdatePurchaseOrderDto) {
-    const { data, error } = await this.supabaseService
+    const { items, ...orderFields } = updateDto;
+
+    // Replace items if provided
+    if (items && items.length > 0) {
+      // Delete existing items
+      await this.supabaseService
+        .getAdminClient()
+        .from('purchase_inventory')
+        .delete()
+        .eq('purchase_order_id', id);
+
+      // Insert new items
+      const newItems = items.map((item) => ({
+        ...item,
+        purchase_order_id: id,
+      }));
+      const { error: itemError } = await this.supabaseService
+        .getAdminClient()
+        .from('purchase_inventory')
+        .insert(newItems);
+      if (itemError) throw itemError;
+
+      // Recalculate total
+      if (!orderFields.total_amount) {
+        orderFields.total_amount = items.reduce(
+          (sum, i) => sum + i.quantity * i.unit_price,
+          0,
+        );
+      }
+
+      // Cascade cost update: update stock_batches and sales_order_item_costs
+      // so the profit report reflects the corrected unit cost.
+      for (const item of items) {
+        const { data: batches } = await this.supabaseService
+          .getAdminClient()
+          .from('stock_batches')
+          .select('id')
+          .eq('purchase_order_id', id)
+          .eq('product_id', item.product_id);
+
+        if (!batches || batches.length === 0) continue;
+        const batchIds = batches.map((b) => b.id);
+
+        // Update cost on the stock batches themselves
+        await this.supabaseService
+          .getAdminClient()
+          .from('stock_batches')
+          .update({ unit_cost: item.unit_price })
+          .in('id', batchIds);
+
+        // Update cost on all sales that were allocated from these batches
+        await this.supabaseService
+          .getAdminClient()
+          .from('sales_order_item_costs')
+          .update({ unit_cost: item.unit_price })
+          .in('batch_id', batchIds);
+      }
+    }
+
+    const { error } = await this.supabaseService
       .getAdminClient()
       .from('purchase_orders')
-      .update({ ...updateDto, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
+      .update({ ...orderFields, updated_at: new Date().toISOString() })
+      .eq('id', id);
     if (error)
       throw new NotFoundException(`Purchase order with ID ${id} not found`);
-    return data;
+    return this.findOne(id);
   }
 
   async updateStatus(id: string, status: string) {
@@ -119,22 +176,29 @@ export class PurchaseOrdersService {
     const order = await this.findOne(orderId);
     if (!order.items || order.items.length === 0) return;
 
+    // Check if stock batches already exist for this PO (prevent double-receiving)
+    const { data: existingBatches } = await this.supabaseService
+      .getAdminClient()
+      .from('stock_batches')
+      .select('id')
+      .eq('purchase_order_id', orderId)
+      .limit(1);
+    if (existingBatches && existingBatches.length > 0) return;
+
     const stockBatches: any[] = [];
     const stockMovements: any[] = [];
 
     for (const item of order.items) {
-      // Convert purchased quantity to base units
       const factor = await this.uomConversionsService.getConversionFactor(
         item.product_id,
         item.purchase_uom_id ?? null,
       );
       const baseQty = item.quantity * factor;
-      // unit_cost in base units = unit_price / factor
       const baseUnitCost = factor > 1 ? item.unit_price / factor : item.unit_price;
 
       stockBatches.push({
         product_id: item.product_id,
-        variant_id: item.variant_id,
+        variant_id: item.variant_id ?? null,
         batch_number: `PO-${order.order_number}-${Date.now().toString(36).toUpperCase()}`,
         quantity_received: baseQty,
         quantity_remaining: baseQty,
@@ -145,7 +209,7 @@ export class PurchaseOrdersService {
 
       stockMovements.push({
         product_id: item.product_id,
-        variant_id: item.variant_id,
+        variant_id: item.variant_id ?? null,
         quantity: baseQty,
         type: 'in',
         reference: `Purchase Order: ${order.order_number}`,
@@ -163,14 +227,6 @@ export class PurchaseOrdersService {
       .getAdminClient()
       .from('stock_movements')
       .insert(stockMovements);
-
-    for (const item of order.items) {
-      await this.supabaseService
-        .getAdminClient()
-        .from('purchase_inventory')
-        .update({ received_quantity: item.quantity })
-        .eq('id', item.id);
-    }
   }
 
   async remove(id: string) {

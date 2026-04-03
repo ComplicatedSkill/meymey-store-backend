@@ -14,11 +14,6 @@ const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 const sales_order_item_dto_1 = require("./sales-order-item.dto");
 class DeliveryInfoDto {
-    address;
-    phone;
-    recipientName;
-    notes;
-    trackingNumber;
 }
 exports.DeliveryInfoDto = DeliveryInfoDto;
 __decorate([
@@ -47,15 +42,6 @@ __decorate([
     __metadata("design:type", String)
 ], DeliveryInfoDto.prototype, "trackingNumber", void 0);
 class CreateSalesOrderDto {
-    customer_id;
-    items;
-    tax;
-    discount;
-    notes;
-    order_date;
-    status;
-    sale_type;
-    delivery_info;
 }
 exports.CreateSalesOrderDto = CreateSalesOrderDto;
 __decorate([

@@ -65,7 +65,7 @@ let StorefrontService = class StorefrontService {
         let query = this.supabaseService
             .getAdminClient()
             .from('products')
-            .select('*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)')
+            .select('*, category:categories!products_category_id_fkey(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)')
             .eq('store_id', storeId);
         if (params?.brandId && params.brandId !== 'all') {
             query = query.eq('brand_id', params.brandId);
@@ -97,7 +97,7 @@ let StorefrontService = class StorefrontService {
         const { data, error } = await this.supabaseService
             .getAdminClient()
             .from('products')
-            .select('*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)')
+            .select('*, category:categories!products_category_id_fkey(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)')
             .eq('id', productId)
             .eq('store_id', storeId)
             .single();
@@ -208,7 +208,7 @@ let StorefrontService = class StorefrontService {
             this.supabaseService
                 .getAdminClient()
                 .from('products')
-                .select('*, category:categories(*), brand:brands(*), stock:stock_batches(quantity_remaining)')
+                .select('*, category:categories!products_category_id_fkey(*), brand:brands(*), stock:stock_batches(quantity_remaining)')
                 .order('created_at', { ascending: false })
                 .limit(200),
             this.supabaseService

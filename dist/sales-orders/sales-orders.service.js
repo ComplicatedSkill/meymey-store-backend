@@ -16,10 +16,6 @@ const notifications_service_1 = require("../notifications/notifications.service"
 const product_packages_service_1 = require("../product-packages/product-packages.service");
 const product_uom_conversions_service_1 = require("../product-uom-conversions/product-uom-conversions.service");
 let SalesOrdersService = class SalesOrdersService {
-    supabaseService;
-    notificationsService;
-    productPackagesService;
-    uomConversionsService;
     constructor(supabaseService, notificationsService, productPackagesService, uomConversionsService) {
         this.supabaseService = supabaseService;
         this.notificationsService = notificationsService;
@@ -101,7 +97,7 @@ let SalesOrdersService = class SalesOrdersService {
         const { data, error } = await this.supabaseService
             .getAdminClient()
             .from('sales_orders')
-            .select('*, customer:customers(*), items:sales_order_items(*, product:products(*), variant:product_variants(*))')
+            .select('*, customer:customers(*), items:sales_order_items(*, product:products(id, name, sku, price, cost, image_url, category_id), variant:product_variants(*))')
             .order('created_at', { ascending: false });
         if (error)
             throw error;
@@ -111,7 +107,7 @@ let SalesOrdersService = class SalesOrdersService {
         const { data, error } = await this.supabaseService
             .getAdminClient()
             .from('sales_orders')
-            .select('*, customer:customers(*), items:sales_order_items(*, product:products(*), variant:product_variants(*))')
+            .select('*, customer:customers(*), items:sales_order_items(*, product:products(id, name, sku, price, cost, image_url, category_id), variant:product_variants(*))')
             .eq('id', id)
             .single();
         if (error)

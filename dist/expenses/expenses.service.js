@@ -19,14 +19,46 @@ let ExpensesService = ExpensesService_1 = class ExpensesService {
         this.logger = new common_1.Logger(ExpensesService_1.name);
     }
     async create(createExpenseDto) {
+        if (createExpenseDto.type === 'monthly') {
+            return this.createMonthlyExpenses(createExpenseDto);
+        }
         const { data, error } = await this.supabaseService
             .getAdminClient()
             .from('expenses')
-            .insert({ ...createExpenseDto })
+            .insert({ ...createExpenseDto, type: createExpenseDto.type ?? 'one-time' })
             .select()
             .single();
         if (error) {
             this.logger.error('Create expense error', error);
+            throw new common_1.InternalServerErrorException(error.message);
+        }
+        return data;
+    }
+    async createMonthlyExpenses(dto) {
+        const refDate = new Date(dto.date);
+        const year = refDate.getUTCFullYear();
+        const month = refDate.getUTCMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const dailyAmount = Math.round((dto.amount / daysInMonth) * 100) / 100;
+        const rows = Array.from({ length: daysInMonth }, (_, i) => {
+            const day = String(i + 1).padStart(2, '0');
+            const monthStr = String(month + 1).padStart(2, '0');
+            return {
+                title: dto.title,
+                amount: dailyAmount,
+                category: dto.category,
+                description: dto.description,
+                date: `${year}-${monthStr}-${day}`,
+                type: 'monthly',
+            };
+        });
+        const { data, error } = await this.supabaseService
+            .getAdminClient()
+            .from('expenses')
+            .insert(rows)
+            .select();
+        if (error) {
+            this.logger.error('Create monthly expense error', error);
             throw new common_1.InternalServerErrorException(error.message);
         }
         return data;

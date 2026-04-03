@@ -61,7 +61,7 @@ export class StorefrontService {
       .getAdminClient()
       .from('products')
       .select(
-        '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+        '*, category:categories!products_category_id_fkey(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
       )
       .eq('store_id', storeId);
 
@@ -105,7 +105,7 @@ export class StorefrontService {
       .getAdminClient()
       .from('products')
       .select(
-        '*, category:categories(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
+        '*, category:categories!products_category_id_fkey(*), brand:brands(*), uom:uom(*), stock:stock_batches(quantity_remaining, variant_id), variants:product_variants(*)',
       )
       .eq('id', productId)
       .eq('store_id', storeId)
@@ -249,7 +249,7 @@ export class StorefrontService {
         .getAdminClient()
         .from('products')
         .select(
-          '*, category:categories(*), brand:brands(*), stock:stock_batches(quantity_remaining)',
+          '*, category:categories!products_category_id_fkey(*), brand:brands(*), stock:stock_batches(quantity_remaining)',
         )
         .order('created_at', { ascending: false })
         .limit(200),

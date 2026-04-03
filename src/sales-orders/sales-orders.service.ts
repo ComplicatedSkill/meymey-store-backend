@@ -126,7 +126,7 @@ export class SalesOrdersService {
       .getAdminClient()
       .from('sales_orders')
       .select(
-        '*, customer:customers(*), items:sales_order_items(*, product:products(*), variant:product_variants(*))',
+        '*, customer:customers(*), items:sales_order_items(*, product:products(id, name, sku, price, cost, image_url, category_id), variant:product_variants(*))',
       )
       .order('created_at', { ascending: false });
     if (error) throw error;
@@ -138,7 +138,7 @@ export class SalesOrdersService {
       .getAdminClient()
       .from('sales_orders')
       .select(
-        '*, customer:customers(*), items:sales_order_items(*, product:products(*), variant:product_variants(*))',
+        '*, customer:customers(*), items:sales_order_items(*, product:products(id, name, sku, price, cost, image_url, category_id), variant:product_variants(*))',
       )
       .eq('id', id)
       .single();

@@ -13,7 +13,6 @@ exports.ProductsService = void 0;
 const common_1 = require("@nestjs/common");
 const supabase_service_1 = require("../supabase/supabase.service");
 let ProductsService = class ProductsService {
-    supabaseService;
     constructor(supabaseService) {
         this.supabaseService = supabaseService;
     }

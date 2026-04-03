@@ -6,6 +6,7 @@ export declare class ExpensesService {
     private readonly logger;
     constructor(supabaseService: SupabaseService);
     create(createExpenseDto: CreateExpenseDto): Promise<any>;
+    private createMonthlyExpenses;
     findAll(startDate?: string, endDate?: string): Promise<any[]>;
     findOne(id: string): Promise<any>;
     update(id: string, updateExpenseDto: UpdateExpenseDto): Promise<any>;

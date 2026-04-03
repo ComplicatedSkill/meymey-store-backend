@@ -12,13 +12,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SalesOrderItemDto = void 0;
 const class_validator_1 = require("class-validator");
 class SalesOrderItemDto {
-    product_id;
-    package_id;
-    variant_id;
-    quantity;
-    unit_price;
-    discount;
-    sale_uom_id;
 }
 exports.SalesOrderItemDto = SalesOrderItemDto;
 __decorate([

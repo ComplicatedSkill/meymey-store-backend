@@ -4,4 +4,5 @@ export declare class CreateExpenseDto {
     category?: string;
     description?: string;
     date: string;
+    type?: 'one-time' | 'monthly';
 }

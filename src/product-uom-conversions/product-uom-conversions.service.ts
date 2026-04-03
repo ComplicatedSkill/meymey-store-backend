@@ -14,8 +14,8 @@ export class ProductUomConversionsService {
       .select('*, uom:uom(*)')
       .eq('product_id', productId)
       .order('conversion_factor', { ascending: true });
-    if (error) throw error;
-    return data;
+    if (error) return []; // table may not exist yet or product has no conversions
+    return data ?? [];
   }
 
   async create(productId: string, dto: CreateProductUomConversionDto) {

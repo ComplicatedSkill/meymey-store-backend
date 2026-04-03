@@ -6,20 +6,29 @@ export class ReportsService {
   constructor(private supabaseService: SupabaseService) {}
 
   async getProfitReport(startDate?: string, endDate?: string) {
-    let query = this.supabaseService
-      .getClient()
+    let ordersQuery = this.supabaseService
+      .getAdminClient()
       .from('sales_orders')
       .select(
         `id, total_amount, subtotal, discount, tax, order_date, created_at, items:sales_order_items(id, total, quantity, unit_price, costs:sales_order_item_costs(quantity, unit_cost))`,
       )
       .filter('status', 'ilike', 'completed');
 
-    if (startDate) query = query.gte('created_at', `${startDate}T00:00:00`);
-    if (endDate) query = query.lte('created_at', `${endDate}T23:59:59`);
+    if (startDate) ordersQuery = ordersQuery.gte('created_at', `${startDate}T00:00:00`);
+    if (endDate) ordersQuery = ordersQuery.lte('created_at', `${endDate}T23:59:59`);
 
-    const { data: orders, error } = await query.order('created_at', {
-      ascending: false,
-    });
+    let expensesQuery = this.supabaseService
+      .getAdminClient()
+      .from('expenses')
+      .select('amount');
+
+    if (startDate) expensesQuery = expensesQuery.gte('date', startDate);
+    if (endDate) expensesQuery = expensesQuery.lte('date', endDate);
+
+    const [{ data: orders, error }, { data: expenseRows }] = await Promise.all([
+      ordersQuery.order('created_at', { ascending: false }),
+      expensesQuery,
+    ]);
     if (error) throw error;
 
     let totalRevenue = 0;
@@ -33,7 +42,9 @@ export class ReportsService {
       });
     });
 
-    const netProfit = totalRevenue - totalCOGS;
+    const totalExpenses = expenseRows?.reduce((sum, r) => sum + Number(r.amount || 0), 0) ?? 0;
+    const grossProfit = totalRevenue - totalCOGS;
+    const netProfit = grossProfit - totalExpenses;
     const profitMargin =
       totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
@@ -41,6 +52,8 @@ export class ReportsService {
       summary: {
         totalRevenue,
         totalCOGS,
+        totalExpenses,
+        grossProfit,
         netProfit,
         profitMargin: Number(profitMargin.toFixed(2)),
         orderCount: orders?.length || 0,
@@ -65,26 +78,26 @@ export class ReportsService {
 
   async getSummaryReport(storeId: string) {
     let salesQuery = this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('sales_orders')
       .select('total_amount', { count: 'exact', head: false })
       .filter('status', 'ilike', 'completed');
 
     let purchaseQuery = this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('purchase_orders')
       .select('total_amount', { count: 'exact', head: false })
       .eq('status', 'RECEIVED');
 
     let productQuery = this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('products')
       .select(
         'id, name, price, cost, reorder_level, stock:stock_batches(quantity_remaining)',
       );
 
     let productCountQuery = this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('products')
       .select('*', { count: 'exact', head: true });
 
@@ -134,7 +147,7 @@ export class ReportsService {
 
   async getPurchaseReport(startDate?: string, endDate?: string) {
     let query = this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('purchase_orders')
       .select('*, supplier:suppliers(name)');
     if (startDate) query = query.gte('created_at', `${startDate}T00:00:00`);
@@ -148,10 +161,10 @@ export class ReportsService {
 
   async getInventoryReport() {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('products')
       .select(
-        'id, name, sku, reorder_level, category:categories(name), uom:uom(abbreviation), stock:stock_batches(quantity_remaining)',
+        'id, name, sku, reorder_level, category:categories!products_category_id_fkey(name), uom:uom(abbreviation), stock:stock_batches(quantity_remaining)',
       );
     if (error) throw error;
     return data.map((p) => {
@@ -214,7 +227,7 @@ export class ReportsService {
 
   async getSalesByCustomerReport() {
     const { data: sales, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('sales_orders')
       .select('total_amount, customer:customers(name)')
       .filter('status', 'ilike', 'completed');
@@ -231,7 +244,7 @@ export class ReportsService {
 
   async getSalesByProductReport(startDate?: string, endDate?: string) {
     let query = this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('sales_order_items')
       .select(
         `quantity, total, unit_price, product:products(id, name, sku), sales_order:sales_orders!inner(id, status, created_at)`,
@@ -389,7 +402,7 @@ export class ReportsService {
 
   async getProductSuppliersReport() {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .from('purchase_inventory')
       .select(
         `product_id, product:products(name, sku), purchase_order:purchase_orders!inner(supplier:suppliers(id, name))`,

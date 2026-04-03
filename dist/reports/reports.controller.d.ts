@@ -6,6 +6,8 @@ export declare class ReportsController {
         summary: {
             totalRevenue: number;
             totalCOGS: number;
+            totalExpenses: number;
+            grossProfit: number;
             netProfit: number;
             profitMargin: number;
             orderCount: number;
