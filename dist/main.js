@@ -15,6 +15,7 @@ async function bootstrap() {
             'http://127.0.0.1:5173',
             'https://shumeii.shop',
             'https://www.shumeii.shop',
+            'https://telegramapp.vercel.app',
         ];
     app.enableCors({
         origin: (origin, callback) => {

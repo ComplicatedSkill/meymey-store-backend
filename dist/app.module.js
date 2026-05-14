@@ -42,6 +42,7 @@ const product_uom_conversions_module_1 = require("./product-uom-conversions/prod
 const income_module_1 = require("./income/income.module");
 const expenses_module_1 = require("./expenses/expenses.module");
 const assets_module_1 = require("./assets/assets.module");
+const telegram_orders_module_1 = require("./telegram-orders/telegram-orders.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -80,6 +81,7 @@ exports.AppModule = AppModule = __decorate([
             income_module_1.IncomeModule,
             expenses_module_1.ExpensesModule,
             assets_module_1.AssetsModule,
+            telegram_orders_module_1.TelegramOrdersModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

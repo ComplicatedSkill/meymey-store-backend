@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { CreateSalesOrderDto } from './dto/create-sales-order.dto';
+import { CreateSalesOrderDto, AdditionalChargeDto } from './dto/create-sales-order.dto';
 import { UpdateSalesOrderDto } from './dto/update-sales-order.dto';
 import { SalesOrderItemDto } from './dto/sales-order-item.dto';
 import { ProductPackagesService } from '../product-packages/product-packages.service';
@@ -36,12 +36,17 @@ export class SalesOrdersService {
     items: SalesOrderItemDto[],
     tax: number = 0,
     discount: number = 0,
+    additionalCharges: AdditionalChargeDto[] = [],
   ) {
     const subtotal = items.reduce(
       (sum, item) => sum + this.calculateItemTotal(item),
       0,
     );
-    return { subtotal, totalAmount: subtotal + tax - discount };
+    const totalAdditional = additionalCharges.reduce(
+      (sum, c) => sum + (c.amount || 0),
+      0,
+    );
+    return { subtotal, totalAmount: subtotal + tax - discount + totalAdditional };
   }
 
   async create(createDto: CreateSalesOrderDto, storeId?: string) {
@@ -77,6 +82,7 @@ export class SalesOrdersService {
       items,
       createDto.tax || 0,
       createDto.discount || 0,
+      createDto.additional_charges || [],
     );
 
     const payload: any = {
@@ -86,6 +92,7 @@ export class SalesOrdersService {
       subtotal,
       total_amount: totalAmount,
       status: createDto.status || 'DRAFT',
+      additional_charges: createDto.additional_charges || [],
     };
     if (storeId) payload.store_id = storeId;
 
@@ -177,6 +184,10 @@ export class SalesOrdersService {
       ...orderData,
       updated_at: new Date().toISOString(),
       order_date: updateDto.order_date || undefined,
+      // always persist additional_charges when provided at the order level
+      ...(updateDto.additional_charges !== undefined && {
+        additional_charges: updateDto.additional_charges,
+      }),
     };
 
     // Step 2: Replace items if provided
@@ -203,12 +214,20 @@ export class SalesOrdersService {
         }
       }
 
+      const effectiveCharges =
+        updateDto.additional_charges ?? existingOrder.additional_charges ?? [];
       const { subtotal, totalAmount } = this.calculateOrderTotals(
         items!,
         updateDto.tax ?? existingOrder.tax ?? 0,
         updateDto.discount ?? existingOrder.discount ?? 0,
+        effectiveCharges,
       );
-      updateData = { ...updateData, subtotal, total_amount: totalAmount };
+      updateData = {
+        ...updateData,
+        subtotal,
+        total_amount: totalAmount,
+        additional_charges: effectiveCharges,
+      };
 
       // Delete old items and re-insert new ones
       await this.supabaseService

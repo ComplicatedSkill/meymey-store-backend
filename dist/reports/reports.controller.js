@@ -17,7 +17,6 @@ const common_1 = require("@nestjs/common");
 const reports_service_1 = require("./reports.service");
 const supabase_auth_guard_1 = require("../auth/supabase-auth.guard");
 let ReportsController = class ReportsController {
-    reportsService;
     constructor(reportsService) {
         this.reportsService = reportsService;
     }

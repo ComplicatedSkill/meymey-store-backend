@@ -1,4 +1,9 @@
 import { SalesOrderItemDto } from './sales-order-item.dto';
+export declare class AdditionalChargeDto {
+    id: string;
+    label: string;
+    amount: number;
+}
 export declare class DeliveryInfoDto {
     address?: string;
     phone?: string;
@@ -16,4 +21,5 @@ export declare class CreateSalesOrderDto {
     status?: string;
     sale_type?: string;
     delivery_info?: DeliveryInfoDto;
+    additional_charges?: AdditionalChargeDto[];
 }

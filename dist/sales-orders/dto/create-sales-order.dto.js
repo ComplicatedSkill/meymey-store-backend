@@ -9,11 +9,35 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreateSalesOrderDto = exports.DeliveryInfoDto = void 0;
+exports.CreateSalesOrderDto = exports.DeliveryInfoDto = exports.AdditionalChargeDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 const sales_order_item_dto_1 = require("./sales-order-item.dto");
+class AdditionalChargeDto {
+    id;
+    label;
+    amount;
+}
+exports.AdditionalChargeDto = AdditionalChargeDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AdditionalChargeDto.prototype, "id", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AdditionalChargeDto.prototype, "label", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], AdditionalChargeDto.prototype, "amount", void 0);
 class DeliveryInfoDto {
+    address;
+    phone;
+    recipientName;
+    notes;
+    trackingNumber;
 }
 exports.DeliveryInfoDto = DeliveryInfoDto;
 __decorate([
@@ -42,6 +66,16 @@ __decorate([
     __metadata("design:type", String)
 ], DeliveryInfoDto.prototype, "trackingNumber", void 0);
 class CreateSalesOrderDto {
+    customer_id;
+    items;
+    tax;
+    discount;
+    notes;
+    order_date;
+    status;
+    sale_type;
+    delivery_info;
+    additional_charges;
 }
 exports.CreateSalesOrderDto = CreateSalesOrderDto;
 __decorate([
@@ -94,4 +128,11 @@ __decorate([
     (0, class_transformer_1.Type)(() => DeliveryInfoDto),
     __metadata("design:type", DeliveryInfoDto)
 ], CreateSalesOrderDto.prototype, "delivery_info", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => AdditionalChargeDto),
+    __metadata("design:type", Array)
+], CreateSalesOrderDto.prototype, "additional_charges", void 0);
 //# sourceMappingURL=create-sales-order.dto.js.map

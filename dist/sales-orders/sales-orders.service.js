@@ -16,6 +16,10 @@ const notifications_service_1 = require("../notifications/notifications.service"
 const product_packages_service_1 = require("../product-packages/product-packages.service");
 const product_uom_conversions_service_1 = require("../product-uom-conversions/product-uom-conversions.service");
 let SalesOrdersService = class SalesOrdersService {
+    supabaseService;
+    notificationsService;
+    productPackagesService;
+    uomConversionsService;
     constructor(supabaseService, notificationsService, productPackagesService, uomConversionsService) {
         this.supabaseService = supabaseService;
         this.notificationsService = notificationsService;
@@ -32,9 +36,10 @@ let SalesOrdersService = class SalesOrdersService {
         const discount = item.discount || 0;
         return subtotal - discount;
     }
-    calculateOrderTotals(items, tax = 0, discount = 0) {
+    calculateOrderTotals(items, tax = 0, discount = 0, additionalCharges = []) {
         const subtotal = items.reduce((sum, item) => sum + this.calculateItemTotal(item), 0);
-        return { subtotal, totalAmount: subtotal + tax - discount };
+        const totalAdditional = additionalCharges.reduce((sum, c) => sum + (c.amount || 0), 0);
+        return { subtotal, totalAmount: subtotal + tax - discount + totalAdditional };
     }
     async create(createDto, storeId) {
         const { items, ...orderData } = createDto;
@@ -52,7 +57,7 @@ let SalesOrdersService = class SalesOrdersService {
                 }
             }
         }
-        const { subtotal, totalAmount } = this.calculateOrderTotals(items, createDto.tax || 0, createDto.discount || 0);
+        const { subtotal, totalAmount } = this.calculateOrderTotals(items, createDto.tax || 0, createDto.discount || 0, createDto.additional_charges || []);
         const payload = {
             ...orderData,
             order_number: this.generateOrderNumber(),
@@ -60,6 +65,7 @@ let SalesOrdersService = class SalesOrdersService {
             subtotal,
             total_amount: totalAmount,
             status: createDto.status || 'DRAFT',
+            additional_charges: createDto.additional_charges || [],
         };
         if (storeId)
             payload.store_id = storeId;
@@ -129,6 +135,9 @@ let SalesOrdersService = class SalesOrdersService {
             ...orderData,
             updated_at: new Date().toISOString(),
             order_date: updateDto.order_date || undefined,
+            ...(updateDto.additional_charges !== undefined && {
+                additional_charges: updateDto.additional_charges,
+            }),
         };
         if (itemsChanged) {
             if (shouldDeductStock) {
@@ -142,8 +151,14 @@ let SalesOrdersService = class SalesOrdersService {
                     }
                 }
             }
-            const { subtotal, totalAmount } = this.calculateOrderTotals(items, updateDto.tax ?? existingOrder.tax ?? 0, updateDto.discount ?? existingOrder.discount ?? 0);
-            updateData = { ...updateData, subtotal, total_amount: totalAmount };
+            const effectiveCharges = updateDto.additional_charges ?? existingOrder.additional_charges ?? [];
+            const { subtotal, totalAmount } = this.calculateOrderTotals(items, updateDto.tax ?? existingOrder.tax ?? 0, updateDto.discount ?? existingOrder.discount ?? 0, effectiveCharges);
+            updateData = {
+                ...updateData,
+                subtotal,
+                total_amount: totalAmount,
+                additional_charges: effectiveCharges,
+            };
             await this.supabaseService
                 .getAdminClient()
                 .from('sales_order_items')

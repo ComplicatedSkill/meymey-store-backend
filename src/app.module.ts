@@ -33,6 +33,7 @@ import { ProductUomConversionsModule } from './product-uom-conversions/product-u
 import { IncomeModule } from './income/income.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { AssetsModule } from './assets/assets.module';
+import { TelegramOrdersModule } from './telegram-orders/telegram-orders.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { AssetsModule } from './assets/assets.module';
     IncomeModule,
     ExpensesModule,
     AssetsModule,
+    TelegramOrdersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

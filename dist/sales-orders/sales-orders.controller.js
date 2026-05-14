@@ -19,6 +19,7 @@ const create_sales_order_dto_1 = require("./dto/create-sales-order.dto");
 const update_sales_order_dto_1 = require("./dto/update-sales-order.dto");
 const supabase_auth_guard_1 = require("../auth/supabase-auth.guard");
 let SalesOrdersController = class SalesOrdersController {
+    salesOrdersService;
     constructor(salesOrdersService) {
         this.salesOrdersService = salesOrdersService;
     }

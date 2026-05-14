@@ -10,6 +10,18 @@ import {
 import { Type } from 'class-transformer';
 import { SalesOrderItemDto } from './sales-order-item.dto';
 
+export class AdditionalChargeDto {
+  @IsString()
+  id: string;
+
+  @IsString()
+  label: string;
+
+  @IsNumber()
+  @Min(0)
+  amount: number;
+}
+
 export class DeliveryInfoDto {
   @IsOptional()
   @IsString()
@@ -73,4 +85,10 @@ export class CreateSalesOrderDto {
   @ValidateNested()
   @Type(() => DeliveryInfoDto)
   delivery_info?: DeliveryInfoDto;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AdditionalChargeDto)
+  additional_charges?: AdditionalChargeDto[];
 }
