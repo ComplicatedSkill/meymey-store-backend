@@ -16,10 +16,6 @@ const notifications_service_1 = require("../notifications/notifications.service"
 const product_packages_service_1 = require("../product-packages/product-packages.service");
 const product_uom_conversions_service_1 = require("../product-uom-conversions/product-uom-conversions.service");
 let SalesOrdersService = class SalesOrdersService {
-    supabaseService;
-    notificationsService;
-    productPackagesService;
-    uomConversionsService;
     constructor(supabaseService, notificationsService, productPackagesService, uomConversionsService) {
         this.supabaseService = supabaseService;
         this.notificationsService = notificationsService;
@@ -75,8 +71,10 @@ let SalesOrdersService = class SalesOrdersService {
             .insert(payload)
             .select()
             .single();
-        if (orderError)
+        if (orderError) {
+            console.error('[SalesOrders] insert error:', orderError);
             throw orderError;
+        }
         const orderItems = items.map((item) => ({
             sales_order_id: order.id,
             product_id: item.product_id || null,

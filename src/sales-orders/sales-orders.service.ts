@@ -102,7 +102,10 @@ export class SalesOrdersService {
       .insert(payload)
       .select()
       .single();
-    if (orderError) throw orderError;
+    if (orderError) {
+      console.error('[SalesOrders] insert error:', orderError);
+      throw orderError;
+    }
 
     const orderItems = items.map((item) => ({
       sales_order_id: order.id,

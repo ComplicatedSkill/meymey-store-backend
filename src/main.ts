@@ -30,6 +30,6 @@ async function bootstrap() {
     credentials: true,
   });
 
-  await app.listen(process.env.PORT ?? 3030);
+  await app.listen(process.env.PORT ?? 3033);
 }
 bootstrap();

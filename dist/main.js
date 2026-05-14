@@ -30,7 +30,7 @@ async function bootstrap() {
         allowedHeaders: ['Content-Type', 'Authorization', 'x-store-id'],
         credentials: true,
     });
-    await app.listen(process.env.PORT ?? 3030);
+    await app.listen(process.env.PORT ?? 3033);
 }
 bootstrap();
 //# sourceMappingURL=main.js.map
