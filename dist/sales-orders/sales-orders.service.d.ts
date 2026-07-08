@@ -4,12 +4,14 @@ import { CreateSalesOrderDto } from './dto/create-sales-order.dto';
 import { UpdateSalesOrderDto } from './dto/update-sales-order.dto';
 import { ProductPackagesService } from '../product-packages/product-packages.service';
 import { ProductUomConversionsService } from '../product-uom-conversions/product-uom-conversions.service';
+import { AccountsReceivableService } from '../accounts-receivable/accounts-receivable.service';
 export declare class SalesOrdersService {
     private supabaseService;
     private notificationsService;
     private productPackagesService;
     private uomConversionsService;
-    constructor(supabaseService: SupabaseService, notificationsService: NotificationsService, productPackagesService: ProductPackagesService, uomConversionsService: ProductUomConversionsService);
+    private accountsReceivableService;
+    constructor(supabaseService: SupabaseService, notificationsService: NotificationsService, productPackagesService: ProductPackagesService, uomConversionsService: ProductUomConversionsService, accountsReceivableService: AccountsReceivableService);
     private generateOrderNumber;
     private calculateItemTotal;
     private calculateOrderTotals;

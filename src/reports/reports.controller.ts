@@ -47,12 +47,37 @@ export class ReportsController {
     return this.reportsService.getSalesByCustomerReport();
   }
 
+  @Get('sales-by-payment-method')
+  getSalesByPaymentMethodReport(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.reportsService.getSalesByPaymentMethodReport(startDate, endDate);
+  }
+
   @Get('sales-by-product')
   getSalesByProductReport(
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
     return this.reportsService.getSalesByProductReport(startDate, endDate);
+  }
+
+  @Get('revenue-by-day')
+  getDailyRevenueReport(@Request() req: any, @Query('days') days?: string) {
+    const storeId = req.user?.store?.id;
+    return this.reportsService.getDailyRevenueReport(
+      storeId,
+      days ? parseInt(days, 10) : 30,
+    );
+  }
+
+  @Get('sales-by-category')
+  getSalesByCategoryReport(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.reportsService.getSalesByCategoryReport(startDate, endDate);
   }
 
   @Get('product-suppliers')

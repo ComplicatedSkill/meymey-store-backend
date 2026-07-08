@@ -9,6 +9,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { ProductUomConversionsService } from '../product-uom-conversions/product-uom-conversions.service';
 import { CreatePurchaseOrderDto } from './dto/create-purchase-order.dto';
 import { UpdatePurchaseOrderDto } from './dto/update-purchase-order.dto';
+import { AccountsPayableService } from '../accounts-payable/accounts-payable.service';
 
 @Injectable()
 export class PurchaseOrdersService {
@@ -17,6 +18,7 @@ export class PurchaseOrdersService {
   constructor(
     private supabaseService: SupabaseService,
     private uomConversionsService: ProductUomConversionsService,
+    private accountsPayableService: AccountsPayableService,
   ) {}
 
   async create(createDto: CreatePurchaseOrderDto) {
@@ -44,6 +46,18 @@ export class PurchaseOrdersService {
         .from('purchase_inventory')
         .insert(inventoryItems);
       if (itemError) console.error('Error creating PO items:', itemError);
+    }
+
+    // Credit purchase: open an accounts payable for the outstanding balance.
+    if ((createDto.payment_type || '').toUpperCase() === 'AP') {
+      try {
+        await this.accountsPayableService.createFromPurchaseOrder(
+          order.id,
+          order.store_id,
+        );
+      } catch (e) {
+        this.logger.error('Failed to create payable for purchase order', e);
+      }
     }
 
     return order;

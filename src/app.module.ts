@@ -16,6 +16,8 @@ import { SuppliersModule } from './suppliers/suppliers.module';
 import { StockAdjustmentsModule } from './stock-adjustments/stock-adjustments.module';
 import { StoresModule } from './stores/stores.module';
 import { CustomersModule } from './customers/customers.module';
+import { AuthorizationLettersModule } from './authorization-letters/authorization-letters.module';
+import { CustomsPermitsModule } from './customs-permits/customs-permits.module';
 import { SalesOrdersModule } from './sales-orders/sales-orders.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { PaymentMethodsModule } from './payment-methods/payment-methods.module';
@@ -34,6 +36,8 @@ import { IncomeModule } from './income/income.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { AssetsModule } from './assets/assets.module';
 import { TelegramOrdersModule } from './telegram-orders/telegram-orders.module';
+import { AccountsReceivableModule } from './accounts-receivable/accounts-receivable.module';
+import { AccountsPayableModule } from './accounts-payable/accounts-payable.module';
 
 @Module({
   imports: [
@@ -52,6 +56,8 @@ import { TelegramOrdersModule } from './telegram-orders/telegram-orders.module';
     StockAdjustmentsModule,
     StoresModule,
     CustomersModule,
+    AuthorizationLettersModule,
+    CustomsPermitsModule,
     SalesOrdersModule,
     InvoicesModule,
     PaymentMethodsModule,
@@ -70,6 +76,8 @@ import { TelegramOrdersModule } from './telegram-orders/telegram-orders.module';
     ExpensesModule,
     AssetsModule,
     TelegramOrdersModule,
+    AccountsReceivableModule,
+    AccountsPayableModule,
   ],
   controllers: [AppController],
   providers: [AppService],

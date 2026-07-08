@@ -10,6 +10,7 @@ import { UpdateSalesOrderDto } from './dto/update-sales-order.dto';
 import { SalesOrderItemDto } from './dto/sales-order-item.dto';
 import { ProductPackagesService } from '../product-packages/product-packages.service';
 import { ProductUomConversionsService } from '../product-uom-conversions/product-uom-conversions.service';
+import { AccountsReceivableService } from '../accounts-receivable/accounts-receivable.service';
 
 @Injectable()
 export class SalesOrdersService {
@@ -18,6 +19,7 @@ export class SalesOrdersService {
     private notificationsService: NotificationsService,
     private productPackagesService: ProductPackagesService,
     private uomConversionsService: ProductUomConversionsService,
+    private accountsReceivableService: AccountsReceivableService,
   ) {}
 
   private generateOrderNumber(): string {
@@ -126,6 +128,18 @@ export class SalesOrdersService {
 
     if (createDto.status?.toLowerCase() === 'completed') {
       await this.deductStock(order.id);
+    }
+
+    // Credit sale: open an accounts receivable for the outstanding balance.
+    if ((createDto.payment_type || '').toUpperCase() === 'AR') {
+      try {
+        await this.accountsReceivableService.createFromSalesOrder(
+          order.id,
+          storeId,
+        );
+      } catch (e) {
+        console.error('[SalesOrders] failed to create receivable:', e);
+      }
     }
 
     return this.findOne(order.id);

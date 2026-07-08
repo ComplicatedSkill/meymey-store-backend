@@ -14,5 +14,6 @@ export declare class CreatePurchaseOrderDto {
     order_date?: string;
     expected_date?: string;
     notes?: string;
+    payment_type?: 'AP' | 'COMPLETE';
     items: PurchaseOrderItemDto[];
 }

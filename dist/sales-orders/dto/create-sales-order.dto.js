@@ -105,6 +105,16 @@ __decorate([
 ], CreateSalesOrderDto.prototype, "sale_type", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['AR', 'COMPLETE']),
+    __metadata("design:type", String)
+], CreateSalesOrderDto.prototype, "payment_type", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateSalesOrderDto.prototype, "payment_method_id", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsObject)(),
     (0, class_validator_1.ValidateNested)(),
     (0, class_transformer_1.Type)(() => DeliveryInfoDto),

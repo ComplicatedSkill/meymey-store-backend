@@ -39,8 +39,18 @@ let ReportsController = class ReportsController {
     getSalesByCustomerReport() {
         return this.reportsService.getSalesByCustomerReport();
     }
+    getSalesByPaymentMethodReport(startDate, endDate) {
+        return this.reportsService.getSalesByPaymentMethodReport(startDate, endDate);
+    }
     getSalesByProductReport(startDate, endDate) {
         return this.reportsService.getSalesByProductReport(startDate, endDate);
+    }
+    getDailyRevenueReport(req, days) {
+        const storeId = req.user?.store?.id;
+        return this.reportsService.getDailyRevenueReport(storeId, days ? parseInt(days, 10) : 30);
+    }
+    getSalesByCategoryReport(startDate, endDate) {
+        return this.reportsService.getSalesByCategoryReport(startDate, endDate);
     }
     getProductSuppliersReport() {
         return this.reportsService.getProductSuppliersReport();
@@ -101,6 +111,14 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], ReportsController.prototype, "getSalesByCustomerReport", null);
 __decorate([
+    (0, common_1.Get)('sales-by-payment-method'),
+    __param(0, (0, common_1.Query)('startDate')),
+    __param(1, (0, common_1.Query)('endDate')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], ReportsController.prototype, "getSalesByPaymentMethodReport", null);
+__decorate([
     (0, common_1.Get)('sales-by-product'),
     __param(0, (0, common_1.Query)('startDate')),
     __param(1, (0, common_1.Query)('endDate')),
@@ -108,6 +126,22 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], ReportsController.prototype, "getSalesByProductReport", null);
+__decorate([
+    (0, common_1.Get)('revenue-by-day'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)('days')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], ReportsController.prototype, "getDailyRevenueReport", null);
+__decorate([
+    (0, common_1.Get)('sales-by-category'),
+    __param(0, (0, common_1.Query)('startDate')),
+    __param(1, (0, common_1.Query)('endDate')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], ReportsController.prototype, "getSalesByCategoryReport", null);
 __decorate([
     (0, common_1.Get)('product-suppliers'),
     __metadata("design:type", Function),

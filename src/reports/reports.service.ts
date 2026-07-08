@@ -87,7 +87,8 @@ export class ReportsService {
       .getAdminClient()
       .from('purchase_orders')
       .select('total_amount', { count: 'exact', head: false })
-      .eq('status', 'RECEIVED');
+      // PO statuses are stored lowercase ('received'); match case-insensitively.
+      .filter('status', 'ilike', 'received');
 
     let productQuery = this.supabaseService
       .getAdminClient()
@@ -132,7 +133,7 @@ export class ReportsService {
     productData?.forEach((p) => {
       const stock =
         p.stock?.reduce((sum, b) => sum + (b.quantity_remaining || 0), 0) || 0;
-      totalInventoryValue += stock * Number(p.cost || 0);
+      totalInventoryValue += stock * Number(p.price || 0);
       if (stock <= (p.reorder_level || 0)) lowStockCount++;
     });
 
@@ -183,7 +184,7 @@ export class ReportsService {
       .getAdminClient()
       .from('sales_orders')
       .select(
-        '*, customer:customers(id, name), items:sales_order_items(quantity, total, unit_price, costs:sales_order_item_costs(quantity, unit_cost))',
+        '*, customer:customers(id, name), payment_method:payment_methods(id, name, type), items:sales_order_items(quantity, total, unit_price, discount, costs:sales_order_item_costs(quantity, unit_cost))',
       )
       .filter('status', 'ilike', 'completed');
     if (startDate) query = query.gte('order_date', startDate);
@@ -195,12 +196,14 @@ export class ReportsService {
 
     return data?.map((o: any) => {
       let cogs = 0;
+      let itemDiscount = 0;
       o.items?.forEach((item: any) => {
         if (item.costs && item.costs.length > 0) {
           item.costs.forEach((cost: any) => {
             cogs += Number(cost.quantity) * Number(cost.unit_cost);
           });
         }
+        itemDiscount += Number(item.discount ?? 0);
       });
       const revenue = Number(o.subtotal ?? o.total_amount ?? 0);
       const profit = revenue - cogs;
@@ -214,11 +217,17 @@ export class ReportsService {
         order_number: o.order_number,
         date,
         customer: o.customer ? { id: o.customer.id, name: o.customer.name } : null,
+        payment_method: o.payment_method
+          ? { id: o.payment_method.id, name: o.payment_method.name, type: o.payment_method.type }
+          : null,
         revenue,
         cogs: Number(cogs.toFixed(4)),
         profit: Number(profit.toFixed(4)),
         profit_margin: profitMargin,
+        // Order-level manual discount (set at checkout) vs. the sum of
+        // per-item discounts applied on individual line items.
         discount: Number(o.discount ?? 0),
+        item_discount: Number(itemDiscount.toFixed(4)),
         tax: Number(o.tax ?? 0),
         total_amount: Number(o.total_amount ?? 0),
       };
@@ -239,6 +248,33 @@ export class ReportsService {
     });
     return Object.entries(customerSales)
       .map(([name, total]) => ({ name, total }))
+      .sort((a, b) => b.total - a.total);
+  }
+
+  async getSalesByPaymentMethodReport(startDate?: string, endDate?: string) {
+    let query = this.supabaseService
+      .getAdminClient()
+      .from('sales_orders')
+      .select('total_amount, order_date, created_at, payment_method:payment_methods(id, name, type)')
+      .filter('status', 'ilike', 'completed');
+    if (startDate) query = query.gte('order_date', startDate);
+    if (endDate) query = query.lte('order_date', endDate);
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const totals: Record<string, { name: string; type: string | null; total: number; orderCount: number }> = {};
+    data?.forEach((o: any) => {
+      const key = o.payment_method?.id ?? 'unspecified';
+      const name = o.payment_method?.name ?? 'Unspecified';
+      if (!totals[key]) {
+        totals[key] = { name, type: o.payment_method?.type ?? null, total: 0, orderCount: 0 };
+      }
+      totals[key].total += Number(o.total_amount ?? 0);
+      totals[key].orderCount += 1;
+    });
+
+    return Object.entries(totals)
+      .map(([id, v]) => ({ id, ...v }))
       .sort((a, b) => b.total - a.total);
   }
 
@@ -277,6 +313,94 @@ export class ReportsService {
     return Object.entries(productSales)
       .map(([id, data]) => ({ id, ...data }))
       .sort((a, b) => b.revenue - a.revenue);
+  }
+
+  async getDailyRevenueReport(storeId: string, days = 30) {
+    const span = Math.max(1, Math.min(days, 365));
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - (span - 1));
+    const startStr = start.toISOString().slice(0, 10);
+
+    let query = this.supabaseService
+      .getAdminClient()
+      .from('sales_orders')
+      .select(
+        'total_amount, order_date, created_at, items:sales_order_items(total, costs:sales_order_item_costs(quantity, unit_cost))',
+      )
+      .filter('status', 'ilike', 'completed')
+      .gte('created_at', `${startStr}T00:00:00`);
+    if (storeId) query = query.eq('store_id', storeId);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const revenues: Record<string, number> = {};
+    const profits: Record<string, number> = {};
+    data?.forEach((o: any) => {
+      const day = (o.order_date || o.created_at || '').slice(0, 10);
+      if (!day) return;
+      const revenue = Number(o.total_amount || 0);
+      let cogs = 0;
+      o.items?.forEach((item: any) => {
+        item.costs?.forEach((c: any) => {
+          cogs += Number(c.quantity || 0) * Number(c.unit_cost || 0);
+        });
+      });
+      revenues[day] = (revenues[day] || 0) + revenue;
+      profits[day] = (profits[day] || 0) + (revenue - cogs);
+    });
+
+    // Emit a continuous series covering every day in the window.
+    const result: { date: string; revenue: number; profit: number }[] = [];
+    for (let i = 0; i < span; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      result.push({
+        date: key,
+        revenue: Number((revenues[key] || 0).toFixed(2)),
+        profit: Number((profits[key] || 0).toFixed(2)),
+      });
+    }
+    return result;
+  }
+
+  async getSalesByCategoryReport(startDate?: string, endDate?: string) {
+    let query = this.supabaseService
+      .getAdminClient()
+      .from('sales_order_items')
+      .select(
+        `total, quantity, product:products(category:categories!products_category_id_fkey(id, name)), sales_order:sales_orders!inner(id, status, created_at)`,
+      )
+      .filter('sales_order.status', 'ilike', 'completed');
+    if (startDate)
+      query = query.gte('sales_order.created_at', `${startDate}T00:00:00`);
+    if (endDate)
+      query = query.lte('sales_order.created_at', `${endDate}T23:59:59`);
+    const { data: items, error } = await query;
+    if (error) throw error;
+
+    const byCategory: Record<
+      string,
+      { category: string; revenue: number; quantity: number }
+    > = {};
+    items?.forEach((item: any) => {
+      const name = item.product?.category?.name || 'Uncategorized';
+      if (!byCategory[name])
+        byCategory[name] = { category: name, revenue: 0, quantity: 0 };
+      byCategory[name].revenue += Number(item.total || 0);
+      byCategory[name].quantity += Number(item.quantity || 0);
+    });
+
+    const rows = Object.values(byCategory).sort(
+      (a, b) => b.revenue - a.revenue,
+    );
+    const total = rows.reduce((sum, r) => sum + r.revenue, 0);
+    return rows.map((r) => ({
+      ...r,
+      percentage: total > 0 ? Math.round((r.revenue / total) * 100) : 0,
+    }));
   }
 
   async getMonthlyProfitLoss(storeId: string, year: number, month: number) {

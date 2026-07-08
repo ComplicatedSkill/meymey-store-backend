@@ -25,6 +25,8 @@ const suppliers_module_1 = require("./suppliers/suppliers.module");
 const stock_adjustments_module_1 = require("./stock-adjustments/stock-adjustments.module");
 const stores_module_1 = require("./stores/stores.module");
 const customers_module_1 = require("./customers/customers.module");
+const authorization_letters_module_1 = require("./authorization-letters/authorization-letters.module");
+const customs_permits_module_1 = require("./customs-permits/customs-permits.module");
 const sales_orders_module_1 = require("./sales-orders/sales-orders.module");
 const invoices_module_1 = require("./invoices/invoices.module");
 const payment_methods_module_1 = require("./payment-methods/payment-methods.module");
@@ -43,6 +45,8 @@ const income_module_1 = require("./income/income.module");
 const expenses_module_1 = require("./expenses/expenses.module");
 const assets_module_1 = require("./assets/assets.module");
 const telegram_orders_module_1 = require("./telegram-orders/telegram-orders.module");
+const accounts_receivable_module_1 = require("./accounts-receivable/accounts-receivable.module");
+const accounts_payable_module_1 = require("./accounts-payable/accounts-payable.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -64,6 +68,8 @@ exports.AppModule = AppModule = __decorate([
             stock_adjustments_module_1.StockAdjustmentsModule,
             stores_module_1.StoresModule,
             customers_module_1.CustomersModule,
+            authorization_letters_module_1.AuthorizationLettersModule,
+            customs_permits_module_1.CustomsPermitsModule,
             sales_orders_module_1.SalesOrdersModule,
             invoices_module_1.InvoicesModule,
             payment_methods_module_1.PaymentMethodsModule,
@@ -82,6 +88,8 @@ exports.AppModule = AppModule = __decorate([
             expenses_module_1.ExpensesModule,
             assets_module_1.AssetsModule,
             telegram_orders_module_1.TelegramOrdersModule,
+            accounts_receivable_module_1.AccountsReceivableModule,
+            accounts_payable_module_1.AccountsPayableModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

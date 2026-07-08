@@ -53,11 +53,17 @@ export declare class ReportsController {
             id: any;
             name: any;
         } | null;
+        payment_method: {
+            id: any;
+            name: any;
+            type: any;
+        } | null;
         revenue: number;
         cogs: number;
         profit: number;
         profit_margin: number;
         discount: number;
+        item_discount: number;
         tax: number;
         total_amount: number;
     }[]>;
@@ -65,12 +71,30 @@ export declare class ReportsController {
         name: string;
         total: number;
     }[]>;
+    getSalesByPaymentMethodReport(startDate?: string, endDate?: string): Promise<{
+        name: string;
+        type: string | null;
+        total: number;
+        orderCount: number;
+        id: string;
+    }[]>;
     getSalesByProductReport(startDate?: string, endDate?: string): Promise<{
         name: string;
         sku: string;
         quantity: number;
         revenue: number;
         id: string;
+    }[]>;
+    getDailyRevenueReport(req: any, days?: string): Promise<{
+        date: string;
+        revenue: number;
+        profit: number;
+    }[]>;
+    getSalesByCategoryReport(startDate?: string, endDate?: string): Promise<{
+        percentage: number;
+        category: string;
+        revenue: number;
+        quantity: number;
     }[]>;
     getProductSuppliersReport(): Promise<{
         id: string;

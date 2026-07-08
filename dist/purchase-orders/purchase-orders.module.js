@@ -11,12 +11,13 @@ const common_1 = require("@nestjs/common");
 const purchase_orders_service_1 = require("./purchase-orders.service");
 const purchase_orders_controller_1 = require("./purchase-orders.controller");
 const product_uom_conversions_module_1 = require("../product-uom-conversions/product-uom-conversions.module");
+const accounts_payable_module_1 = require("../accounts-payable/accounts-payable.module");
 let PurchaseOrdersModule = class PurchaseOrdersModule {
 };
 exports.PurchaseOrdersModule = PurchaseOrdersModule;
 exports.PurchaseOrdersModule = PurchaseOrdersModule = __decorate([
     (0, common_1.Module)({
-        imports: [product_uom_conversions_module_1.ProductUomConversionsModule],
+        imports: [product_uom_conversions_module_1.ProductUomConversionsModule, accounts_payable_module_1.AccountsPayableModule],
         controllers: [purchase_orders_controller_1.PurchaseOrdersController],
         providers: [purchase_orders_service_1.PurchaseOrdersService],
         exports: [purchase_orders_service_1.PurchaseOrdersService],

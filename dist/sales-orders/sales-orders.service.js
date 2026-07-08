@@ -15,12 +15,14 @@ const supabase_service_1 = require("../supabase/supabase.service");
 const notifications_service_1 = require("../notifications/notifications.service");
 const product_packages_service_1 = require("../product-packages/product-packages.service");
 const product_uom_conversions_service_1 = require("../product-uom-conversions/product-uom-conversions.service");
+const accounts_receivable_service_1 = require("../accounts-receivable/accounts-receivable.service");
 let SalesOrdersService = class SalesOrdersService {
-    constructor(supabaseService, notificationsService, productPackagesService, uomConversionsService) {
+    constructor(supabaseService, notificationsService, productPackagesService, uomConversionsService, accountsReceivableService) {
         this.supabaseService = supabaseService;
         this.notificationsService = notificationsService;
         this.productPackagesService = productPackagesService;
         this.uomConversionsService = uomConversionsService;
+        this.accountsReceivableService = accountsReceivableService;
     }
     generateOrderNumber() {
         const timestamp = Date.now().toString(36).toUpperCase();
@@ -94,6 +96,14 @@ let SalesOrdersService = class SalesOrdersService {
             throw itemsError;
         if (createDto.status?.toLowerCase() === 'completed') {
             await this.deductStock(order.id);
+        }
+        if ((createDto.payment_type || '').toUpperCase() === 'AR') {
+            try {
+                await this.accountsReceivableService.createFromSalesOrder(order.id, storeId);
+            }
+            catch (e) {
+                console.error('[SalesOrders] failed to create receivable:', e);
+            }
         }
         return this.findOne(order.id);
     }
@@ -418,6 +428,7 @@ exports.SalesOrdersService = SalesOrdersService = __decorate([
     __metadata("design:paramtypes", [supabase_service_1.SupabaseService,
         notifications_service_1.NotificationsService,
         product_packages_service_1.ProductPackagesService,
-        product_uom_conversions_service_1.ProductUomConversionsService])
+        product_uom_conversions_service_1.ProductUomConversionsService,
+        accounts_receivable_service_1.AccountsReceivableService])
 ], SalesOrdersService);
 //# sourceMappingURL=sales-orders.service.js.map

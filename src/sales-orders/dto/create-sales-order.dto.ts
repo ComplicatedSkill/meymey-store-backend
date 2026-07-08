@@ -6,6 +6,7 @@ import {
   ValidateNested,
   Min,
   IsObject,
+  IsIn,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { SalesOrderItemDto } from './sales-order-item.dto';
@@ -79,6 +80,16 @@ export class CreateSalesOrderDto {
   @IsOptional()
   @IsString()
   sale_type?: string;
+
+  // 'AR' = credit sale (creates an accounts receivable), 'COMPLETE' = paid in full
+  @IsOptional()
+  @IsIn(['AR', 'COMPLETE'])
+  payment_type?: 'AR' | 'COMPLETE';
+
+  // Which payment method (cash, bank transfer, etc.) the customer paid with.
+  @IsOptional()
+  @IsString()
+  payment_method_id?: string;
 
   @IsOptional()
   @IsObject()

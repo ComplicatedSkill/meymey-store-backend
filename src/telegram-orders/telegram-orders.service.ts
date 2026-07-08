@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
+import FormData from 'form-data';
+import { renderReceiptImage } from './receipt-image';
 
 export interface OrderItem {
   name: string;
@@ -19,6 +21,32 @@ export interface CheckoutPayload {
   items: OrderItem[];
   total: number;
   user: TelegramUser | null;
+}
+
+export interface ReceiptItem {
+  name: string;
+  qty: number;
+  unit_price: number;
+  total?: number;
+  discount?: number;
+}
+
+export interface ReceiptCharge {
+  label: string;
+  amount: number;
+}
+
+export interface ReceiptPayload {
+  order_number: string;
+  customer_name?: string;
+  items: ReceiptItem[];
+  subtotal: number;
+  discount?: number;
+  tax?: number;
+  additional_charges?: ReceiptCharge[];
+  total: number;
+  payment_type?: string;
+  status?: string;
 }
 
 @Injectable()
@@ -69,6 +97,35 @@ export class TelegramOrdersService {
     await axios.post(
       `https://api.telegram.org/bot${botToken}/sendMessage`,
       { chat_id: chatId, text, parse_mode: 'HTML' },
+    );
+  }
+
+  /** Sends a POS sale receipt to the group as a designed receipt image. */
+  async sendReceipt(payload: ReceiptPayload): Promise<void> {
+    const botToken = this.config.get<string>('TELEGRAM_BOT_TOKEN');
+    const chatId = this.config.get<string>('TELEGRAM_GROUP_CHAT_ID');
+
+    if (!botToken || !chatId) {
+      this.logger.warn('TELEGRAM_BOT_TOKEN or TELEGRAM_GROUP_CHAT_ID not set');
+      throw new Error('Telegram bot not configured');
+    }
+
+    const png = await renderReceiptImage(payload);
+
+    const isAr = (payload.payment_type ?? '').toUpperCase() === 'AR';
+    const isDraft = (payload.status ?? '').toUpperCase() === 'DRAFT';
+    const captionStatus = isAr ? '⏳ AR' : isDraft ? '📝 Quotation' : '✅ Completed';
+    const caption = `🧾 ${payload.order_number} · $${payload.total.toFixed(2)} · ${captionStatus}`;
+
+    const form = new FormData();
+    form.append('chat_id', chatId);
+    form.append('caption', caption);
+    form.append('photo', png, { filename: 'receipt.png', contentType: 'image/png' });
+
+    await axios.post(
+      `https://api.telegram.org/bot${botToken}/sendPhoto`,
+      form,
+      { headers: form.getHeaders() },
     );
   }
 }

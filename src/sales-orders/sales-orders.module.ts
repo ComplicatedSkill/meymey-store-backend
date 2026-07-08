@@ -5,9 +5,10 @@ import { SupabaseModule } from '../supabase/supabase.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ProductPackagesModule } from '../product-packages/product-packages.module';
 import { ProductUomConversionsModule } from '../product-uom-conversions/product-uom-conversions.module';
+import { AccountsReceivableModule } from '../accounts-receivable/accounts-receivable.module';
 
 @Module({
-  imports: [SupabaseModule, NotificationsModule, ProductPackagesModule, ProductUomConversionsModule],
+  imports: [SupabaseModule, NotificationsModule, ProductPackagesModule, ProductUomConversionsModule, AccountsReceivableModule],
   controllers: [SalesOrdersController],
   providers: [SalesOrdersService],
   exports: [SalesOrdersService],

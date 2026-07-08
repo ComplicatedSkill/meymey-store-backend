@@ -14,10 +14,12 @@ exports.PurchaseOrdersService = void 0;
 const common_1 = require("@nestjs/common");
 const supabase_service_1 = require("../supabase/supabase.service");
 const product_uom_conversions_service_1 = require("../product-uom-conversions/product-uom-conversions.service");
+const accounts_payable_service_1 = require("../accounts-payable/accounts-payable.service");
 let PurchaseOrdersService = PurchaseOrdersService_1 = class PurchaseOrdersService {
-    constructor(supabaseService, uomConversionsService) {
+    constructor(supabaseService, uomConversionsService, accountsPayableService) {
         this.supabaseService = supabaseService;
         this.uomConversionsService = uomConversionsService;
+        this.accountsPayableService = accountsPayableService;
         this.logger = new common_1.Logger(PurchaseOrdersService_1.name);
     }
     async create(createDto) {
@@ -45,6 +47,14 @@ let PurchaseOrdersService = PurchaseOrdersService_1 = class PurchaseOrdersServic
                 .insert(inventoryItems);
             if (itemError)
                 console.error('Error creating PO items:', itemError);
+        }
+        if ((createDto.payment_type || '').toUpperCase() === 'AP') {
+            try {
+                await this.accountsPayableService.createFromPurchaseOrder(order.id, order.store_id);
+            }
+            catch (e) {
+                this.logger.error('Failed to create payable for purchase order', e);
+            }
         }
         return order;
     }
@@ -206,6 +216,7 @@ exports.PurchaseOrdersService = PurchaseOrdersService;
 exports.PurchaseOrdersService = PurchaseOrdersService = PurchaseOrdersService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [supabase_service_1.SupabaseService,
-        product_uom_conversions_service_1.ProductUomConversionsService])
+        product_uom_conversions_service_1.ProductUomConversionsService,
+        accounts_payable_service_1.AccountsPayableService])
 ], PurchaseOrdersService);
 //# sourceMappingURL=purchase-orders.service.js.map

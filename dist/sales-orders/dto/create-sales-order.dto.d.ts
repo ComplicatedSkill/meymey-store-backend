@@ -20,6 +20,8 @@ export declare class CreateSalesOrderDto {
     order_date?: string;
     status?: string;
     sale_type?: string;
+    payment_type?: 'AR' | 'COMPLETE';
+    payment_method_id?: string;
     delivery_info?: DeliveryInfoDto;
     additional_charges?: AdditionalChargeDto[];
 }

@@ -66,6 +66,11 @@ export class CreatePurchaseOrderDto {
   @IsString()
   notes?: string;
 
+  // 'AP' = credit purchase (creates an accounts payable), 'COMPLETE' = paid in full
+  @IsOptional()
+  @IsIn(['AP', 'COMPLETE'])
+  payment_type?: 'AP' | 'COMPLETE';
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PurchaseOrderItemDto)
